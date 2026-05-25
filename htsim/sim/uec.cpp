@@ -1367,23 +1367,17 @@ void UecSrc::multiplicative_decrease() {
     }
 }
 
-void UecSrc::multiplicative_decrease_with_cdelay(simtime_picosec target_Cdelay, mem_b queue_capacity_per_incast) {
+void UecSrc::multiplicative_decrease_with_cdelay(simtime_picosec target_Cdelay) {
     _increase = false;
     _fi_count = 0;
     // NSCC fastcn模式使用独立的fastcn_avg_delay
     simtime_picosec avg_delay = _nscc_fastcn ? get_fastcn_avg_delay() : get_avg_delay();
-    // simtime_picosec avg_delay = get_avg_delay();
-    if (avg_delay > target_Cdelay * 1){
-        if (eventlist().now() - _last_dec_time > 0){
-        // if (eventlist().now() - _last_dec_time > _base_rtt){
+    if (avg_delay > target_Cdelay){
+        if (eventlist().now() - _last_dec_time > _base_rtt / 1){
             mem_b before = _cwnd;
-            if (before < queue_capacity_per_incast)
-            {
-                return;
-            }
-            double md_factor = max(1-_gamma * (avg_delay-target_Cdelay * 1)/avg_delay, 0.5);/*_max_md_jump instead of 1*/
-            // _cwnd *= md_factor;
-            _cwnd = queue_capacity_per_incast;
+            // 标准乘性减小：使用md_factor乘以当前窗口
+            double md_factor = max(1 - _gamma * (avg_delay - target_Cdelay) / avg_delay, 0.5);
+            _cwnd *= md_factor;
             _cwnd = max(_cwnd, _min_cwnd);
             _nscc_overall_stats.dec_multi_bytes += before - _cwnd;
             _nscc_fulfill_stats.dec_multi_bytes += before - _cwnd;
@@ -1397,6 +1391,52 @@ void UecSrc::multiplicative_decrease_with_cdelay(simtime_picosec target_Cdelay, 
             _last_dec_time = eventlist().now();
         }
     }
+}
+
+void UecSrc::adjust_cwnd_with_fastcn(int incast_num) {
+    // 使用公式: cwnd = (_network_linkspeed * (target_Qdelay + 2 * _base_rtt)) / incast_num
+    // _network_linkspeed: 比特/秒
+    // _target_Qdelay + 2*_base_rtt: 皮秒 → 需要转换为秒
+    // 结果: 字节
+    
+    // 边界检查
+    if (incast_num <= 0 || _network_linkspeed <= 0) {
+        return;
+    }
+    
+    // 时间间隔检查：至少间隔一个RTT才能再次调整
+    simtime_picosec min_interval = _base_rtt / 1;
+    if (eventlist().now() - _last_dec_time < min_interval) {
+        return;
+    }
+    
+    // 保存旧窗口值用于日志
+    mem_b before = _cwnd;
+    
+    // 计算新窗口
+    // delay_seconds = (_target_Qdelay + 2 * _base_rtt) / 1e12
+    // BDP = (_network_linkspeed / 8.0) * delay_seconds
+    // cwnd = BDP / incast_num
+    double delay_seconds = (_target_Qdelay + 1 * _base_rtt) / 1e12;
+    mem_b target_cwnd = (_network_linkspeed / 8.0) * delay_seconds / incast_num;
+    
+    // 应用新窗口（确保不小于最小窗口）
+    _cwnd = max(target_cwnd, (mem_b)_min_cwnd);
+    
+    // NSCC: 记录快速CN窗口调整
+    if (_enable_cwnd_log && _sender_cc_algo == NSCC) {
+        cout << "[NSCC-CWND] " << timeAsUs(eventlist().now()) << " flowid " << _flow.flow_id()
+             << " ADJUST_FASTCN " << before << "->" << _cwnd
+             << " incast_num=" << incast_num
+             << " target_Qdelay=" << timeAsUs(_target_Qdelay)
+             << " base_rtt=" << timeAsUs(_base_rtt)
+             << " linkspeed=" << _network_linkspeed << endl;
+    }
+    
+    // 更新状态标志
+    _increase = false;
+    _fi_count = 0;
+    _last_dec_time = eventlist().now();
 }
 
 void UecSrc::additive_increase_on_ecn_notify() {
@@ -1550,6 +1590,11 @@ void UecSrc::updateCwndOnAck_NSCC(bool skip, simtime_picosec delay, mem_b newly_
 }
 
 void UecSrc::updateCwndOnNack_NSCC(bool skip, mem_b nacked_bytes, bool last_hop) {
+    // FastCN 模式下禁用 NACK 降窗，只依赖 ECN 进行拥塞控制
+    if (_nscc_fastcn) {
+        return;
+    }
+
     bool adjust_cwnd = true;
 
     _bytes_ignored += nacked_bytes;
@@ -1585,53 +1630,27 @@ void UecSrc::updateCwndOnNack_NSCC(bool skip, mem_b nacked_bytes, bool last_hop)
 
 void UecSrc::processEcnNotify_NSCC(const UecEcnNotifyPacket& pkt) {
     // NSCC: 基于ECN标记进行窗口调整
+    // 使用新的 adjust_cwnd_with_fastcn 函数
+    
+    // 从ECN Notify包中获取数据
+    double dq_dt = pkt.dq_dt();
+    
+    // 计算 incast_num
+    int incast_num = 0;
+    if (_network_linkspeed > 0 && dq_dt > 0) {
+        // 从 dq_dt 动态计算 incast_num
+        // dq_dt 单位: bytes/second
+        // linkspeed 单位: bits/second
+        // incast_num = dq_dt / (linkspeed / 8) = dq_dt * 8 / linkspeed
+        // incast_num = (int)ceil(dq_dt * 8.0 / (double)_network_linkspeed) + 1;
+        incast_num = 32;
+    }
+    
     // 使用队列深度和链路速度计算排队延迟
     simtime_picosec delay = 0;
-
+    
     // 从ECN Notify包中获取队列深度（字节）
     mem_b queue_size = pkt.queue_size_low();
-
-    // 判断队列深度与ECN low水线的关系
-    if (queue_size < _ecn_low) {
-        // 队列深度小于ECN low水线：网络负载较轻，进行一次加性增窗
-        if (_flow.flow_id() == _debug_flowid || UecSrc::_debug) {
-            cout << timeAsUs(eventlist().now()) << " flowid " << _flow.flow_id()
-                 << " NSCC ECN_NOTIFY (queue < ecn_low)"
-                 << " queue_size_low=" << queue_size
-                 << " _ecn_low=" << _ecn_low
-                 << " additive increase mode" << endl;
-        }
-        
-        // NSCC快速拥塞响应模式下：轻负载时进行加性增窗
-        if (_nscc_fastcn) {
-            // 进行一次加性增窗
-            additive_increase_on_ecn_notify();
-            
-            // 同时更新延迟统计
-            double queue_size_bits = queue_size * 8.0;
-            double delay_seconds = queue_size_bits / (double)_network_linkspeed;
-            delay = timeFromSec(delay_seconds);
-            update_fastcn_delay(delay + _base_rtt, true, true);
-        }
-        return;
-    }
-
-    double dq_dt = pkt.dq_dt();
-    mem_b queue_capacity = pkt.queue_capacity();
-
-    // 计算 dq_dt 与链路速率的比值（归一化到 [0, 1] 范围）
-    // dq_dt 单位: bytes/second
-    // linkspeed 单位: bits/second
-    // 需要转换为: dq_dt / (linkspeed / 8) = dq_dt * 8 / linkspeed
-    int incast_num = 0;
-    if (_network_linkspeed > 0) {
-        if(dq_dt <= 0)
-            return;
-        incast_num = (int)ceil(dq_dt * 8.0 / (double)_network_linkspeed);
-        // incast_num = 3;
-    }
-
-    mem_b queue_capacity_per_incast = queue_capacity / incast_num;
     
     // 使用网络链路速度计算排队延迟
     // delay = queue_size / linkspeed
@@ -1640,37 +1659,23 @@ void UecSrc::processEcnNotify_NSCC(const UecEcnNotifyPacket& pkt) {
     double delay_seconds = queue_size_bits / (double)_network_linkspeed;
     delay = timeFromSec(delay_seconds);
     
-    // 计算 target_Cdelay：ECN下水线除以带宽 + 基础RTT
-    // target_Cdelay = _ecn_low / _network_linkspeed（转换为秒）+ _base_rtt
-    // _ecn_low 是字节，_network_linkspeed 是比特/秒
-    // 需要转换为：秒 = (字节 * 8) / (比特/秒)
-    double ecn_low_bits = (double)_ecn_low * 8.0;
-    double cdelay_seconds = ecn_low_bits / (double)_network_linkspeed;
-    simtime_picosec target_Cdelay = timeFromSec(cdelay_seconds);
-    
-    if (_flow.flow_id() == _debug_flowid || UecSrc::_debug) {
-        cout << timeAsUs(eventlist().now()) << " flowid " << _flow.flow_id()
-             << " NSCC ECN_NOTIFY"
-             << " queue_size_low=" << pkt.queue_size_low()
-             << " queue_size_high=" << pkt.queue_size_high()
-             << " delay=" << timeAsUs(delay)
-             << " target_Qdelay=" << timeAsUs(_target_Qdelay)
-             << " target_Cdelay=" << timeAsUs(target_Cdelay)
-             << " ecn_tag=" << pkt.ecn_tag() 
-             << " _ecn_low=" << _ecn_low
-             << " _network_linkspeed=" << _network_linkspeed << endl;
-    }
-    
     // NSCC快速拥塞响应：基于 delay 和 ecn_tag 进行窗口调整
     if (_nscc_fastcn) {
         update_fastcn_delay(delay + _base_rtt, true, true);
-        // 与ACK路径逻辑保持一致：ECN标记被设置且延迟高时乘性减窗
-
-        if (pkt.ecn_tag() && delay >= target_Cdelay) {
-            multiplicative_decrease_with_cdelay(target_Cdelay, queue_capacity_per_incast);
-            if (_flow.flow_id() == _debug_flowid || UecSrc::_debug) {
-                cout << timeAsUs(eventlist().now()) <<" flowid " << _flow.flow_id()<< " " << _flow.str() << " multiplicative_decrease_with_cdelay _nscc_cwnd " << _cwnd << endl;
-            }
+    }
+    
+    // NSCC快速拥塞响应：ECN标记被设置时调整窗口
+    if (_nscc_fastcn && pkt.ecn_tag()) {
+        // 概率触发：80%概率使用乘性减小，20%概率使用adjust
+        // 使用rand()生成随机数
+        if ((rand() % 100) < 0) {
+            // 使用乘性减小（渐进式，更安全）
+            // 计算target_Cdelay：ecn下水线对应的延迟
+            simtime_picosec target_Cdelay = (simtime_picosec)(_ecn_low * 8.0 / _network_linkspeed * 1e12);
+            multiplicative_decrease_with_cdelay(target_Cdelay);
+        } else {
+            // 使用FastCN调整（基于理论计算）
+            adjust_cwnd_with_fastcn(incast_num);
         }
     }
 }

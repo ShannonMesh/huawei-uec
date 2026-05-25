@@ -404,7 +404,8 @@ private:
     void fast_increase(uint32_t newly_acked_bytes,simtime_picosec delay);
     // void fair_decrease(bool can_decrease, uint32_t newly_acked_bytes);
     void multiplicative_decrease();
-    void multiplicative_decrease_with_cdelay(simtime_picosec target_Cdelay, mem_b queue_capacity_per_incast = 0);
+    void multiplicative_decrease_with_cdelay(simtime_picosec target_Cdelay);
+    void adjust_cwnd_with_fastcn(int incast_num);
     void additive_increase_on_ecn_notify();  // 在ECN notify时进行加性增窗（用于轻负载场景）
     void fulfill_adjustment();
     void mark_packet_for_retransmission(UecBasePacket::seq_t psn, uint16_t pktsize);

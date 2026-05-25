@@ -25,7 +25,11 @@ def parse_result_file(result_file):
         'nacks': 0,
         'pulls': 0,
         'sleek_pkts': 0,
-        'actual_connections': 0
+        'actual_connections': 0,
+        'base_rtt_us': 0,  # 基础RTT (微秒)
+        'base_bdp_bytes': 0,  # 基础BDP (字节)
+        'network_rtt_us': 0,  # 网络RTT (微秒)
+        'network_bdp_bytes': 0  # 网络BDP (字节)
     }
     
     with open(result_file, 'r') as f:
@@ -35,6 +39,33 @@ def parse_result_file(result_file):
                 match = re.search(r'Connections:\s*(\d+)', line)
                 if match:
                     data['connections'] = int(match.group(1))
+            
+            # 提取网络RTT和BDP (从静态NSCC参数)
+            if 'Initializing static NSCC parameters:' in line:
+                # 提取 _network_rtt (皮秒转微秒) - 使用负向回顾避免匹配到 _reference_network_rtt
+                match = re.search(r'(?<!_reference)_network_rtt=(\d+)', line)
+                if match:
+                    data['network_rtt_us'] = int(match.group(1)) / 1e6  # 皮秒转微秒
+                # 提取 _network_bdp - 使用负向回顾避免匹配到 _reference_network_bdp
+                match = re.search(r'(?<!_reference)_network_bdp=(\d+)', line)
+                if match:
+                    data['network_bdp_bytes'] = int(match.group(1))
+            
+            # 提取每个流的base_rtt和base_bdp
+            if 'Initialize per-instance NSCC parameters:' in line:
+                # 提取 _base_rtt (皮秒转微秒)
+                match = re.search(r'_base_rtt=(\d+)', line)
+                if match:
+                    rtt_ps = int(match.group(1))
+                    # 只记录第一个流的值作为代表
+                    if data['base_rtt_us'] == 0:
+                        data['base_rtt_us'] = rtt_ps / 1e6  # 皮秒转微秒
+                # 提取 _base_bdp
+                match = re.search(r'_base_bdp=(\d+)', line)
+                if match:
+                    bdp = int(match.group(1))
+                    if data['base_bdp_bytes'] == 0:
+                        data['base_bdp_bytes'] = bdp
             
             # 提取流完成信息
             if 'finished at' in line:
@@ -198,6 +229,10 @@ def analyze_experiments(result_dir, output_dir='./figures/'):
             f.write("-" * 80 + "\n")
             f.write(f"连接数: {data['connections']}\n")
             f.write(f"实际完成连接数: {data['actual_connections']}\n")
+            f.write(f"基础RTT: {data['base_rtt_us']:.2f} us\n")
+            f.write(f"基础BDP: {data['base_bdp_bytes']} bytes\n")
+            f.write(f"网络RTT: {data['network_rtt_us']:.2f} us\n")
+            f.write(f"网络BDP: {data['network_bdp_bytes']} bytes\n")
             
             if data['connections'] != data['actual_connections']:
                 f.write(f"[FAIL] 连接数不匹配!\n")
@@ -244,14 +279,14 @@ def analyze_experiments(result_dir, output_dir='./figures/'):
         max_dst_count = max(len(data['flow_dst_bytes']) for data in experiments_data.values()) if experiments_data else 0
         dst_headers = [f"Dst_{i}_Bytes" for i in range(max_dst_count)]
         
-        f.write("Experiment,Connections,Actual_Connections,Mean_FCT_us,Min_FCT_us,Max_FCT_us,Median_FCT_us,")
+        f.write("Experiment,Connections,Actual_Connections,Base_RTT_us,Base_BDP_Bytes,Network_RTT_us,Network_BDP_Bytes,Mean_FCT_us,Min_FCT_us,Max_FCT_us,Median_FCT_us,")
         f.write("Mean_Throughput_Gbps,Min_Throughput_Gbps,Max_Throughput_Gbps,")
         f.write("New_Pkts,Rtx_Pkts,Rts_Pkts,Bounced_Pkts,Acks,Nacks,Pulls_Pkts,Sleek_Pkts,Rtx_Rate_%,")
         f.write(','.join(dst_headers) + ",")
         f.write("Max_Traffic_Bytes,CCT_us,Total_Bandwidth_Gbps\n")
         
         for exp_name, data in experiments_data.items():
-            f.write(f"{exp_name},{data['connections']},{data['actual_connections']},")
+            f.write(f"{exp_name},{data['connections']},{data['actual_connections']},{data['base_rtt_us']:.2f},{data['base_bdp_bytes']},{data['network_rtt_us']:.2f},{data['network_bdp_bytes']},")
             
             if data['fcts']:
                 f.write(f"{np.mean(data['fcts']):.2f},{min(data['fcts']):.2f},{max(data['fcts']):.2f},{np.median(data['fcts']):.2f},")

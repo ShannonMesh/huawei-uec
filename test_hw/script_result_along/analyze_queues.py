@@ -7,10 +7,12 @@ import numpy as np
 
 
 def parse_log_file(filepath):
-    """解析日志文件，返回每个队列每次统计的累积到达包数和队列深度"""
+    """解析日志文件，返回每个队列每次统计的累积到达包数和队列深度（LastQ、MaxQ、MinQ）"""
     queue_names = {}
     queue_samples = {}
-    queue_depth_samples = {}
+    queue_depth_last_samples = {}
+    queue_depth_max_samples = {}
+    queue_depth_min_samples = {}
 
     with open(filepath, 'r') as f:
         for line in f:
@@ -36,12 +38,21 @@ def parse_log_file(filepath):
                 time_match = re.search(r'^(\d+\.\d+)', line)
                 timestamp = float(time_match.group(1)) if time_match else 0.0
                 
-                match = re.search(r'MaxQ (\d+)', line)
-                if match:
-                    max_q = int(match.group(1))
-                    queue_depth_samples.setdefault(queue_id, []).append((timestamp, max_q))
+                last_match = re.search(r'LastQ (\d+)', line)
+                max_match = re.search(r'MaxQ (\d+)', line)
+                min_match = re.search(r'MinQ (\d+)', line)
+                if last_match and max_match and min_match:
+                    last_q = int(last_match.group(1))
+                    max_q = int(max_match.group(1))
+                    min_q = int(min_match.group(1))
+                    queue_depth_last_samples.setdefault(queue_id, []).append((timestamp, last_q))
+                    queue_depth_max_samples.setdefault(queue_id, []).append((timestamp, max_q))
+                    queue_depth_min_samples.setdefault(queue_id, []).append((timestamp, min_q))
 
-    return {'names': queue_names, 'samples': queue_samples, 'depth_samples': queue_depth_samples}
+    return {'names': queue_names, 'samples': queue_samples, 
+            'depth_last_samples': queue_depth_last_samples,
+            'depth_max_samples': queue_depth_max_samples,
+            'depth_min_samples': queue_depth_min_samples}
 
 
 def normalize_queue_name(name):
@@ -174,39 +185,78 @@ def generate_csv(exp_dir, data):
 
 
 def generate_queue_depth_csv(exp_dir, data):
-    """生成队列深度CSV文件：每时刻各队列的队列深度"""
+    """生成队列深度CSV文件：每时刻各队列的LastQ、MaxQ、MinQ队列深度"""
     names = data['names']
-    depth_samples = data['depth_samples']
+    depth_last_samples = data['depth_last_samples']
+    depth_max_samples = data['depth_max_samples']
+    depth_min_samples = data['depth_min_samples']
     
-    # 统一队列名并去重
-    queue_names = list({normalize_queue_name(names[qid]) for qid in depth_samples if qid in names})
+    # 统一队列名并去重（从LastQ中收集所有队列名）
+    queue_names = list({normalize_queue_name(names[qid]) for qid in depth_last_samples if qid in names})
     queue_names.sort(key=parse_queue_name)
     
     # 收集所有时间戳
-    timestamps = sorted({ts for qid in depth_samples for ts, _ in depth_samples[qid]})
+    timestamps = sorted({ts for qid in depth_last_samples for ts, _ in depth_last_samples[qid]})
     
-    # 构建数据: timestamp -> {queue_name -> depth}
+    # 构建数据: timestamp -> {queue_name -> (last_depth, max_depth, min_depth)}
     data_by_time = {ts: {} for ts in timestamps}
-    for qid, sample_list in depth_samples.items():
+    
+    # 处理LastQ数据
+    for qid, sample_list in depth_last_samples.items():
         if qid not in names:
             continue
         qname = normalize_queue_name(names[qid])
-        for ts, depth in sample_list:
-            data_by_time[ts][qname] = depth
+        for ts, last_depth in sample_list:
+            if qname not in data_by_time[ts]:
+                data_by_time[ts][qname] = [0, 0, 0]
+            data_by_time[ts][qname][0] = last_depth
+    
+    # 处理MaxQ数据
+    for qid, sample_list in depth_max_samples.items():
+        if qid not in names:
+            continue
+        qname = normalize_queue_name(names[qid])
+        for ts, max_depth in sample_list:
+            if qname not in data_by_time[ts]:
+                data_by_time[ts][qname] = [0, 0, 0]
+            data_by_time[ts][qname][1] = max_depth
+    
+    # 处理MinQ数据
+    for qid, sample_list in depth_min_samples.items():
+        if qid not in names:
+            continue
+        qname = normalize_queue_name(names[qid])
+        for ts, min_depth in sample_list:
+            if qname not in data_by_time[ts]:
+                data_by_time[ts][qname] = [0, 0, 0]
+            data_by_time[ts][qname][2] = min_depth
+    
+    # 构建表头：每个队列显示为三列（LastQ, MaxQ, MinQ）
+    headers = []
+    for qname in queue_names:
+        headers.append(f"{qname}_LastQ")
+        headers.append(f"{qname}_MaxQ")
+        headers.append(f"{qname}_MinQ")
     
     # 写入CSV
     output_file = os.path.join(exp_dir, 'queue_depth.csv')
     with open(output_file, 'w') as f:
         # 表头
-        f.write('Timestamp,' + ','.join(queue_names) + '\n')
+        f.write('Timestamp,' + ','.join(headers) + '\n')
         
         # 数据行
         for ts in timestamps:
-            line = str(ts) + ',' + ','.join(str(data_by_time[ts].get(q, 0)) for q in queue_names)
+            values = []
+            for qname in queue_names:
+                last_val, max_val, min_val = data_by_time[ts].get(qname, [0, 0, 0])
+                values.append(str(last_val))
+                values.append(str(max_val))
+                values.append(str(min_val))
+            line = str(ts) + ',' + ','.join(values)
             f.write(line + '\n')
     
     print(f"Saved: {output_file}")
-    return output_file
+    return output_file, data_by_time, queue_names
 
 
 def analyze_experiment(exp_dir, exp_name):
@@ -221,8 +271,120 @@ def analyze_experiment(exp_dir, exp_name):
         return None
 
     output_file = generate_csv(exp_dir, data)
-    depth_output_file = generate_queue_depth_csv(exp_dir, data)
-    return {'name': exp_name, 'output_file': output_file, 'depth_output_file': depth_output_file}
+    depth_output_file, depth_data_by_time, depth_queue_names = generate_queue_depth_csv(exp_dir, data)
+    return {'name': exp_name, 'output_file': output_file, 'depth_output_file': depth_output_file,
+            'depth_data_by_time': depth_data_by_time, 'depth_queue_names': depth_queue_names}
+
+
+def generate_queue_histogram(parent_dir, results, target_queue='LS1->DST96(0)', bins=10):
+    """为指定队列生成LastQ、MaxQ、MinQ的直方图，每个实验三张图，横坐标是数据范围，纵坐标是计数"""
+    summary_dir = os.path.join(parent_dir, '概要')
+    os.makedirs(summary_dir, exist_ok=True)
+    
+    # 收集数据
+    exp_data = {}  # exp_name -> {'lastq': [...], 'maxq': [...], 'minq': [...]}
+    
+    for result in results:
+        if 'depth_data_by_time' not in result or 'depth_queue_names' not in result:
+            continue
+        
+        data_by_time = result['depth_data_by_time']
+        queue_names = result['depth_queue_names']
+        
+        # 查找目标队列
+        if target_queue not in queue_names:
+            continue
+        
+        # 收集该队列的所有LastQ、MaxQ、MinQ值
+        lastq_values = []
+        maxq_values = []
+        minq_values = []
+        for ts in sorted(data_by_time.keys()):
+            if target_queue in data_by_time[ts]:
+                last_val, max_val, min_val = data_by_time[ts][target_queue]
+                lastq_values.append(last_val)
+                maxq_values.append(max_val)
+                minq_values.append(min_val)
+        
+        if lastq_values:
+            exp_data[result['name']] = {'lastq': lastq_values, 'maxq': maxq_values, 'minq': minq_values}
+    
+    if not exp_data:
+        print(f"No data found for queue {target_queue}")
+        return
+    
+    # 为每个实验生成三张图
+    for exp_name, data in exp_data.items():
+        lastq_values = data['lastq']
+        maxq_values = data['maxq']
+        minq_values = data['minq']
+        safe_exp_name = exp_name.replace('/', '_').replace('\\', '_')
+        
+        # 生成LastQ直方图
+        fig, ax = plt.subplots(figsize=(12, 6))
+        hist, edges = np.histogram(lastq_values, bins=bins)
+        bin_centers = (edges[:-1] + edges[1:]) / 2
+        bin_width = edges[1] - edges[0]
+        bars = ax.bar(bin_centers, hist, width=bin_width * 0.8, edgecolor='black', alpha=0.7)
+        for bar, count in zip(bars, hist):
+            height = bar.get_height()
+            ax.text(bar.get_x() + bar.get_width()/2., height, f'{int(count)}', ha='center', va='bottom', fontsize=9)
+        ax.set_xlabel('Queue Depth Range (bytes)', fontsize=12)
+        ax.set_ylabel('Count', fontsize=12)
+        ax.set_title(f'{exp_name} - {target_queue} LastQ Distribution', fontsize=14)
+        range_labels = [f'{int(edges[i])}-{int(edges[i+1])}' for i in range(bins)]
+        ax.set_xticks(bin_centers)
+        ax.set_xticklabels(range_labels, rotation=45, ha='right')
+        ax.grid(True, alpha=0.3, axis='y')
+        plt.tight_layout()
+        output_path = os.path.join(summary_dir, f'{safe_exp_name}_{target_queue.replace("->", "_")}_LastQ_hist.png')
+        plt.savefig(output_path, dpi=300, bbox_inches='tight')
+        plt.close()
+        print(f"Generated LastQ histogram: {output_path}")
+        
+        # 生成MaxQ直方图
+        fig, ax = plt.subplots(figsize=(12, 6))
+        hist, edges = np.histogram(maxq_values, bins=bins)
+        bin_centers = (edges[:-1] + edges[1:]) / 2
+        bin_width = edges[1] - edges[0]
+        bars = ax.bar(bin_centers, hist, width=bin_width * 0.8, edgecolor='black', alpha=0.7, color='coral')
+        for bar, count in zip(bars, hist):
+            height = bar.get_height()
+            ax.text(bar.get_x() + bar.get_width()/2., height, f'{int(count)}', ha='center', va='bottom', fontsize=9)
+        ax.set_xlabel('Queue Depth Range (bytes)', fontsize=12)
+        ax.set_ylabel('Count', fontsize=12)
+        ax.set_title(f'{exp_name} - {target_queue} MaxQ Distribution', fontsize=14)
+        range_labels = [f'{int(edges[i])}-{int(edges[i+1])}' for i in range(bins)]
+        ax.set_xticks(bin_centers)
+        ax.set_xticklabels(range_labels, rotation=45, ha='right')
+        ax.grid(True, alpha=0.3, axis='y')
+        plt.tight_layout()
+        output_path = os.path.join(summary_dir, f'{safe_exp_name}_{target_queue.replace("->", "_")}_MaxQ_hist.png')
+        plt.savefig(output_path, dpi=300, bbox_inches='tight')
+        plt.close()
+        print(f"Generated MaxQ histogram: {output_path}")
+        
+        # 生成MinQ直方图
+        fig, ax = plt.subplots(figsize=(12, 6))
+        hist, edges = np.histogram(minq_values, bins=bins)
+        bin_centers = (edges[:-1] + edges[1:]) / 2
+        bin_width = edges[1] - edges[0]
+        bars = ax.bar(bin_centers, hist, width=bin_width * 0.8, edgecolor='black', alpha=0.7, color='lightgreen')
+        for bar, count in zip(bars, hist):
+            height = bar.get_height()
+            ax.text(bar.get_x() + bar.get_width()/2., height, f'{int(count)}', ha='center', va='bottom', fontsize=9)
+        ax.set_xlabel('Queue Depth Range (bytes)', fontsize=12)
+        ax.set_ylabel('Count', fontsize=12)
+        ax.set_title(f'{exp_name} - {target_queue} MinQ Distribution', fontsize=14)
+        range_labels = [f'{int(edges[i])}-{int(edges[i+1])}' for i in range(bins)]
+        ax.set_xticks(bin_centers)
+        ax.set_xticklabels(range_labels, rotation=45, ha='right')
+        ax.grid(True, alpha=0.3, axis='y')
+        plt.tight_layout()
+        output_path = os.path.join(summary_dir, f'{safe_exp_name}_{target_queue.replace("->", "_")}_MinQ_hist.png')
+        plt.savefig(output_path, dpi=300, bbox_inches='tight')
+        plt.close()
+        print(f"Generated MinQ histogram: {output_path}")
 
 
 def read_jain_indices(csv_file):
@@ -345,6 +507,9 @@ def generate_boxplot_summary(parent_dir, results):
     """生成箱线图总结，为每个叶交换机单独生成一张图"""
     for leaf_id in range(4):
         generate_boxplot_for_leaf(parent_dir, results, leaf_id)
+    
+    # 为LS1->DST96(0)队列生成直方图
+    generate_queue_histogram(parent_dir, results, 'LS1->DST96(0)')
 
 
 def main():

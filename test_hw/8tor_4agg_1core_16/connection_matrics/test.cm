@@ -1,6 +1,6 @@
 Nodes 64
 Connections 4
 0->63 start 0 size 1000000
-1->62 start 0 size 500000
-2->61 start 0 size 500000
-3->60 start 0 size 500000
+1->62 start 0 size 1000000
+2->61 start 0 size 1000000
+3->60 start 0 size 1000000
