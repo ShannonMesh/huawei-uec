@@ -1,0 +1,32 @@
+# Experiment Group 4: Load Balancing Algorithms Comparison (NSCC + composite)
+# Compare different load balancing algorithms with NSCC
+
+# Bitmap负载均衡（默认）
+/home/lrh/uet-htsim/htsim/sim/build/datacenter/htsim_uec \
+  -tm /home/lrh/uet-htsim/test_hw/2spine_4leaf_256/connection_matrices/incast_8to1_1MB.cm \
+  -topo /home/lrh/uet-htsim/test_hw/2spine_4leaf_256/leaf_spine_256.topo \
+  -debug \
+  -sender_cc_algo nscc \
+  -queue_type composite \
+  -load_balancing_algo bitmap \
+  > /home/lrh/uet-htsim/test_hw/2spine_4leaf_256/result/result_lb_nscc_bitmap.txt
+
+# REPS负载均衡
+/home/lrh/uet-htsim/htsim/sim/build/datacenter/htsim_uec \
+  -tm /home/lrh/uet-htsim/test_hw/2spine_4leaf_256/connection_matrices/incast_8to1_1MB.cm \
+  -topo /home/lrh/uet-htsim/test_hw/2spine_4leaf_256/leaf_spine_256.topo \
+  -debug \
+  -sender_cc_algo nscc \
+  -queue_type composite \
+  -load_balancing_algo reps \
+  > /home/lrh/uet-htsim/test_hw/2spine_4leaf_256/result/result_lb_nscc_reps.txt
+
+# Mixed负载均衡
+/home/lrh/uet-htsim/htsim/sim/build/datacenter/htsim_uec \
+  -tm /home/lrh/uet-htsim/test_hw/2spine_4leaf_256/connection_matrices/incast_8to1_1MB.cm \
+  -topo /home/lrh/uet-htsim/test_hw/2spine_4leaf_256/leaf_spine_256.topo \
+  -debug \
+  -sender_cc_algo nscc \
+  -queue_type composite \
+  -load_balancing_algo mixed \
+  > /home/lrh/uet-htsim/test_hw/2spine_4leaf_256/result/result_lb_nscc_mixed.txt

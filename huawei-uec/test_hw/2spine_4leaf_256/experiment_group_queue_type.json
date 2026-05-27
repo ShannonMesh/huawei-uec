@@ -1,0 +1,37 @@
+{
+  "experiments": [
+    {
+      "name": "queue_composite",
+      "description": "队列类型：Composite（默认，启用裁剪），队列大小300",
+      "command": "/home/lrh/uet-htsim/htsim/sim/build/datacenter/htsim_uec",
+      "args": [
+        "-tm", "/home/lrh/uet-htsim/test_hw/2spine_4leaf_256/connection_matrices/permutation_64pair_10MB.cm",
+        "-topo", "/home/lrh/uet-htsim/test_hw/2spine_4leaf_256/leaf_spine_256.topo",
+        "-queue_type", "composite",
+        "-log", "tor_upqueue",
+        "-logtime_us", "20",
+        "-q", "300",
+        "-end", "0"
+      ],
+      "output": "/home/lrh/uet-htsim/test_hw/2spine_4leaf_256/result/queue_composite.txt",
+      "log": "/home/lrh/uet-htsim/test_hw/2spine_4leaf_256/result/queue_composite.log"
+    },
+    {
+      "name": "queue_lossless_input",
+      "description": "队列类型：Lossless Input，PFC阈值248/250，队列大小300",
+      "command": "/home/lrh/uet-htsim/htsim/sim/build/datacenter/htsim_uec",
+      "args": [
+        "-tm", "/home/lrh/uet-htsim/test_hw/2spine_4leaf_256/connection_matrices/permutation_64pair_10MB.cm",
+        "-topo", "/home/lrh/uet-htsim/test_hw/2spine_4leaf_256/leaf_spine_256.topo",
+        "-queue_type", "lossless_input",
+        "-pfc_thresholds", "248 250",
+        "-log", "tor_upqueue",
+        "-logtime_us", "20",
+        "-q", "300",
+        "-end", "0"
+      ],
+      "output": "/home/lrh/uet-htsim/test_hw/2spine_4leaf_256/result/queue_lossless_input.txt",
+      "log": "/home/lrh/uet-htsim/test_hw/2spine_4leaf_256/result/queue_lossless_input.log"
+    }
+  ]
+}

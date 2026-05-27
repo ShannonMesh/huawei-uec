@@ -1,0 +1,38 @@
+{
+  "experiments": [
+    {
+      "name": "nscc_256_100KB",
+      "command": "/home/lrh/uet-htsim/htsim/sim/build/datacenter/htsim_uec_origin",
+      "args": [
+        "-tm", "/home/lrh/uet-htsim/test_hw/2spine_4leaf_256/connection_matrices/alltoall_256_100KB_parallel.cm",
+        "-topo", "/home/lrh/uet-htsim/test_hw/2spine_4leaf_256/leaf_spine_256.topo",
+        "-debug",
+        "-log", "nic",
+        "-logtime_us", "20",
+        "-sender_cc_algo", "nscc",
+        "-queue_type", "composite",
+        "-end", "0",
+        "-q", "300"
+      ],
+      "output": "/home/lrh/uet-htsim/test_hw/2spine_4leaf_256/result/result_nscc_256_100KB.txt",
+      "log": "/home/lrh/uet-htsim/test_hw/2spine_4leaf_256/result/result_nscc_256_100KB.log"
+    },
+    {
+      "name": "nscc_256_100KB_ecn",
+      "command": "/home/lrh/uet-htsim/htsim/sim/build/datacenter/htsim_uec",
+      "args": [
+        "-tm", "/home/lrh/uet-htsim/test_hw/2spine_4leaf_256/connection_matrices/alltoall_256_100KB_parallel.cm",
+        "-topo", "/home/lrh/uet-htsim/test_hw/2spine_4leaf_256/leaf_spine_256.topo",
+        "-debug",
+        "-log", "nic",
+        "-logtime_us", "20",
+        "-sender_cc_algo", "nscc",
+        "-queue_type", "composite",
+        "-end", "0",
+        "-q", "300"
+      ],
+      "output": "/home/lrh/uet-htsim/test_hw/2spine_4leaf_256/result/result_nscc_256_100KB_ecn.txt",
+      "log": "/home/lrh/uet-htsim/test_hw/2spine_4leaf_256/result/result_nscc_256_100KB_ecn.log"
+    }
+  ]
+}

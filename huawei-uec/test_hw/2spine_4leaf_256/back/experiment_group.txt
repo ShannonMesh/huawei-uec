@@ -1,0 +1,59 @@
+# Experiment Group 1: Different Congestion Control Algorithms
+# Baseline: NSCC (default)
+/home/lrh/uet-htsim/htsim/sim/build/datacenter/htsim_uec \
+  -tm /home/lrh/uet-htsim/test_hw/2spine_4leaf_256/connection_matrices/incast_8to1_1MB.cm \
+  -topo /home/lrh/uet-htsim/test_hw/2spine_4leaf_256/leaf_spine_256.topo \
+  -debug \
+  > /home/lrh/uet-htsim/test_hw/2spine_4leaf_256/result/result_nscc_default.txt
+
+# DCTCP
+/home/lrh/uet-htsim/htsim/sim/build/datacenter/htsim_uec \
+  -tm /home/lrh/uet-htsim/test_hw/2spine_4leaf_256/connection_matrices/incast_8to1_1MB.cm \
+  -topo /home/lrh/uet-htsim/test_hw/2spine_4leaf_256/leaf_spine_256.topo \
+  -debug \
+  -sender_cc_algo dctcp \
+  > /home/lrh/uet-htsim/test_hw/2spine_4leaf_256/result/result_dctcp.txt
+
+# Constant CWND
+/home/lrh/uet-htsim/htsim/sim/build/datacenter/htsim_uec \
+  -tm /home/lrh/uet-htsim/test_hw/2spine_4leaf_256/connection_matrices/incast_8to1_1MB.cm \
+  -topo /home/lrh/uet-htsim/test_hw/2spine_4leaf_256/leaf_spine_256.topo \
+  -debug \
+  -sender_cc_algo constant \
+  > /home/lrh/uet-htsim/test_hw/2spine_4leaf_256/result/result_constant.txt
+
+# Experiment Group 2: Queue Types
+# Composite queue (default)
+/home/lrh/uet-htsim/htsim/sim/build/datacenter/htsim_uec \
+  -tm /home/lrh/uet-htsim/test_hw/2spine_4leaf_256/connection_matrices/incast_8to1_1MB.cm \
+  -topo /home/lrh/uet-htsim/test_hw/2spine_4leaf_256/leaf_spine_256.topo \
+  -debug \
+  -queue_type composite \
+  > /home/lrh/uet-htsim/test_hw/2spine_4leaf_256/result/result_queue_composite.txt
+
+# Composite queue (composite_ecn)
+/home/lrh/uet-htsim/htsim/sim/build/datacenter/htsim_uec \
+  -tm /home/lrh/uet-htsim/test_hw/2spine_4leaf_256/connection_matrices/incast_8to1_1MB.cm \
+  -topo /home/lrh/uet-htsim/test_hw/2spine_4leaf_256/leaf_spine_256.topo \
+  -debug \
+  -queue_type composite_ecn \
+  > /home/lrh/uet-htsim/test_hw/2spine_4leaf_256/result/result_queue_composite_ecn.txt
+
+# DCTCP Composite queue (composite_ecn)
+/home/lrh/uet-htsim/htsim/sim/build/datacenter/htsim_uec \
+  -tm /home/lrh/uet-htsim/test_hw/2spine_4leaf_256/connection_matrices/incast_8to1_1MB.cm \
+  -topo /home/lrh/uet-htsim/test_hw/2spine_4leaf_256/leaf_spine_256.topo \
+  -debug \
+  -sender_cc_algo dctcp \
+  -queue_type composite_ecn \
+  > /home/lrh/uet-htsim/test_hw/2spine_4leaf_256/result/result_dctcp_queue_composite_ecn.txt
+
+# Lossless queue (NOT SUPPORTED by htsim_uec)
+# htsim_uec only supports: composite, composite_ecn, aeolus, aeolus_ecn
+# /home/lrh/uet-htsim/htsim/sim/build/datacenter/htsim_uec \
+#   -tm /home/lrh/uet-htsim/test_hw/2spine_4leaf_256/connection_matrices/incast_8to1_1MB.cm \
+#   -topo /home/lrh/uet-htsim/test_hw/2spine_4leaf_256/leaf_spine_256.topo \
+#   -debug \
+#   -queue_type lossless \
+#   > /home/lrh/uet-htsim/test_hw/2spine_4leaf_256/result/result_queue_lossless.txt
+

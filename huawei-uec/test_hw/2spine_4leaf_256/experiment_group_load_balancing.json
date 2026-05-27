@@ -1,0 +1,68 @@
+{
+  "experiments": [
+    {
+      "name": "lb_mixed",
+      "description": "负载均衡：Mixed（默认，REPS+Bitmap），队列大小300",
+      "command": "/home/lrh/uet-htsim/htsim/sim/build/datacenter/htsim_uec",
+      "args": [
+        "-tm", "/home/lrh/uet-htsim/test_hw/2spine_4leaf_256/connection_matrices/alltoall_256_100KB_parallel.cm",
+        "-topo", "/home/lrh/uet-htsim/test_hw/2spine_4leaf_256/leaf_spine_256.topo",
+        "-load_balancing_algo", "mixed",
+        "-q", "300",
+        "-log", "tor_upqueue",
+        "-logtime_us", "20",
+        "-end", "0"
+      ],
+      "output": "/home/lrh/uet-htsim/test_hw/2spine_4leaf_256/result/lb_mixed.txt",
+      "log": "/home/lrh/uet-htsim/test_hw/2spine_4leaf_256/result/lb_mixed.log"
+    },
+    {
+      "name": "lb_bitmap",
+      "description": "负载均衡：Bitmap，队列大小300",
+      "command": "/home/lrh/uet-htsim/htsim/sim/build/datacenter/htsim_uec",
+      "args": [
+        "-tm", "/home/lrh/uet-htsim/test_hw/2spine_4leaf_256/connection_matrices/alltoall_256_100KB_parallel.cm",
+        "-topo", "/home/lrh/uet-htsim/test_hw/2spine_4leaf_256/leaf_spine_256.topo",
+        "-load_balancing_algo", "bitmap",
+        "-q", "300",
+        "-log", "tor_upqueue",
+        "-logtime_us", "20",
+        "-end", "0"
+      ],
+      "output": "/home/lrh/uet-htsim/test_hw/2spine_4leaf_256/result/lb_bitmap.txt",
+      "log": "/home/lrh/uet-htsim/test_hw/2spine_4leaf_256/result/lb_bitmap.log"
+    },
+    {
+      "name": "lb_reps",
+      "description": "负载均衡：REPS，队列大小300",
+      "command": "/home/lrh/uet-htsim/htsim/sim/build/datacenter/htsim_uec",
+      "args": [
+        "-tm", "/home/lrh/uet-htsim/test_hw/2spine_4leaf_256/connection_matrices/alltoall_256_100KB_parallel.cm",
+        "-topo", "/home/lrh/uet-htsim/test_hw/2spine_4leaf_256/leaf_spine_256.topo",
+        "-load_balancing_algo", "reps",
+        "-q", "300",
+        "-log", "tor_upqueue",
+        "-logtime_us", "20",
+        "-end", "0"
+      ],
+      "output": "/home/lrh/uet-htsim/test_hw/2spine_4leaf_256/result/lb_reps.txt",
+      "log": "/home/lrh/uet-htsim/test_hw/2spine_4leaf_256/result/lb_reps.log"
+    },
+    {
+      "name": "lb_oblivious",
+      "description": "负载均衡：Oblivious（轮询），队列大小300",
+      "command": "/home/lrh/uet-htsim/htsim/sim/build/datacenter/htsim_uec",
+      "args": [
+        "-tm", "/home/lrh/uet-htsim/test_hw/2spine_4leaf_256/connection_matrices/alltoall_256_100KB_parallel.cm",
+        "-topo", "/home/lrh/uet-htsim/test_hw/2spine_4leaf_256/leaf_spine_256.topo",
+        "-load_balancing_algo", "oblivious",
+        "-q", "300",
+        "-log", "tor_upqueue",
+        "-logtime_us", "20",
+        "-end", "0"
+      ],
+      "output": "/home/lrh/uet-htsim/test_hw/2spine_4leaf_256/result/lb_oblivious.txt",
+      "log": "/home/lrh/uet-htsim/test_hw/2spine_4leaf_256/result/lb_oblivious.log"
+    }
+  ]
+}

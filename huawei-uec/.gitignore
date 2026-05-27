@@ -1,0 +1,19 @@
+*.o
+*.a
+parse_output
+htsim_*
+*.dat
+*.csv
+# *.json
+idmap.txt
+*_test
+*.out
+*.pyc
+**/validation/**/*.cm
+*.pdf
+*.png
+!example_validate.json
+build/
+# test_hw/2spine_4leaf_256/
+result_*
+test/

@@ -1,0 +1,32 @@
+# Experiment Group 5: DCTCP Routing Strategies Comparison
+# Compare different routing strategies with DCTCP
+
+# DCTCP + ECMP路由
+/home/lrh/uet-htsim/htsim/sim/build/datacenter/htsim_uec \
+  -tm /home/lrh/uet-htsim/test_hw/2spine_4leaf_256/connection_matrices/incast_8to1_1MB.cm \
+  -topo /home/lrh/uet-htsim/test_hw/2spine_4leaf_256/leaf_spine_256.topo \
+  -debug \
+  -sender_cc_algo dctcp \
+  -queue_type composite_ecn \
+  -strat ecmp_host \
+  > /home/lrh/uet-htsim/test_hw/2spine_4leaf_256/result/result_route_dctcp_ecmp.txt
+
+# DCTCP + ECMP ECN路由
+/home/lrh/uet-htsim/htsim/sim/build/datacenter/htsim_uec \
+  -tm /home/lrh/uet-htsim/test_hw/2spine_4leaf_256/connection_matrices/incast_8to1_1MB.cm \
+  -topo /home/lrh/uet-htsim/test_hw/2spine_4leaf_256/leaf_spine_256.topo \
+  -debug \
+  -sender_cc_algo dctcp \
+  -queue_type composite_ecn \
+  -strat ecmp_host_ecn \
+  > /home/lrh/uet-htsim/test_hw/2spine_4leaf_256/result/result_route_dctcp_ecmp_ecn.txt
+
+# DCTCP + 反应式ECN路由
+/home/lrh/uet-htsim/htsim/sim/build/datacenter/htsim_uec \
+  -tm /home/lrh/uet-htsim/test_hw/2spine_4leaf_256/connection_matrices/incast_8to1_1MB.cm \
+  -topo /home/lrh/uet-htsim/test_hw/2spine_4leaf_256/leaf_spine_256.topo \
+  -debug \
+  -sender_cc_algo dctcp \
+  -queue_type composite_ecn \
+  -strat reactive_ecn \
+  > /home/lrh/uet-htsim/test_hw/2spine_4leaf_256/result/result_route_dctcp_reactive_ecn.txt

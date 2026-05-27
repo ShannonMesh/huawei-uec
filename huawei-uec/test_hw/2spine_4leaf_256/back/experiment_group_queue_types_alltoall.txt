@@ -1,0 +1,26 @@
+# Experiment Group 9: Queue Types Comparison (CONSTANT)
+# Compare CONSTANT performance with different queue types
+
+# Composite队列
+/home/lrh/uet-htsim/htsim/sim/build/datacenter/htsim_uec \
+  -tm /home/lrh/uet-htsim/test_hw/2spine_4leaf_256/connection_matrices/alltoall_64_1MB_parallel.cm \
+  -topo /home/lrh/uet-htsim/test_hw/2spine_4leaf_256/leaf_spine_256.topo \
+  -debug \
+  -sender_cc_algo constant \
+  -queue_type composite \
+  -end 0 \
+  -q 300 \
+  > /home/lrh/uet-htsim/test_hw/2spine_4leaf_256/result/result_queue_constant_composite.txt
+
+# Lossless Input队列（支持PFC）
+/home/lrh/uet-htsim/htsim/sim/build/datacenter/htsim_uec \
+  -tm /home/lrh/uet-htsim/test_hw/2spine_4leaf_256/connection_matrices/alltoall_64_1MB_parallel.cm \
+  -topo /home/lrh/uet-htsim/test_hw/2spine_4leaf_256/leaf_spine_256.topo \
+  -debug \
+  -sender_cc_algo constant \
+  -queue_type lossless_input \
+  -pfc_thresholds 248 250 \
+  -end 0 \
+  -q 300 \
+  > /home/lrh/uet-htsim/test_hw/2spine_4leaf_256/result/result_queue_constant_lossless_input.txt
+

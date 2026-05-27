@@ -1,0 +1,33 @@
+# Experiment Group 7: Best Configuration Comparison
+# Find the best configuration for each congestion control algorithm
+
+# NSCC最佳组合：NSCC + composite + ecmp + bitmap
+/home/lrh/uet-htsim/htsim/sim/build/datacenter/htsim_uec \
+  -tm /home/lrh/uet-htsim/test_hw/2spine_4leaf_256/connection_matrices/incast_8to1_1MB.cm \
+  -topo /home/lrh/uet-htsim/test_hw/2spine_4leaf_256/leaf_spine_256.topo \
+  -debug \
+  -sender_cc_algo nscc \
+  -queue_type composite \
+  -strat ecmp_host \
+  -load_balancing_algo bitmap \
+  > /home/lrh/uet-htsim/test_hw/2spine_4leaf_256/result/result_best_nscc.txt
+
+# DCTCP最佳组合：DCTCP + composite_ecn + ecmp_host_ecn
+/home/lrh/uet-htsim/htsim/sim/build/datacenter/htsim_uec \
+  -tm /home/lrh/uet-htsim/test_hw/2spine_4leaf_256/connection_matrices/incast_8to1_1MB.cm \
+  -topo /home/lrh/uet-htsim/test_hw/2spine_4leaf_256/leaf_spine_256.topo \
+  -debug \
+  -sender_cc_algo dctcp \
+  -queue_type composite_ecn \
+  -strat ecmp_host_ecn \
+  > /home/lrh/uet-htsim/test_hw/2spine_4leaf_256/result/result_best_dctcp.txt
+
+# NSCC + AEOLUS组合
+/home/lrh/uet-htsim/htsim/sim/build/datacenter/htsim_uec \
+  -tm /home/lrh/uet-htsim/test_hw/2spine_4leaf_256/connection_matrices/incast_8to1_1MB.cm \
+  -topo /home/lrh/uet-htsim/test_hw/2spine_4leaf_256/leaf_spine_256.topo \
+  -debug \
+  -sender_cc_algo nscc \
+  -queue_type aeolus \
+  -strat ecmp_host \
+  > /home/lrh/uet-htsim/test_hw/2spine_4leaf_256/result/result_best_nscc_aeolus.txt

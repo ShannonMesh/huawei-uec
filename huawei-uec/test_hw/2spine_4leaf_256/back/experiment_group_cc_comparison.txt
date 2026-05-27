@@ -1,0 +1,67 @@
+# Experiment Group 1: Congestion Control Algorithms Comparison
+# Compare NSCC, DCTCP, and Constant CWND
+
+# NSCC拥塞控制（推荐）
+/home/lrh/uet-htsim/htsim/sim/build/datacenter/htsim_uec \
+  -tm /home/lrh/uet-htsim/test_hw/2spine_4leaf_256/connection_matrices/allreduce_8_1MB.cm \
+  -topo /home/lrh/uet-htsim/test_hw/2spine_4leaf_256/leaf_spine_256.topo \
+  -debug \
+  -sender_cc_algo nscc \
+  -queue_type composite \
+  -end 2000 \
+  > /home/lrh/uet-htsim/test_hw/2spine_4leaf_256/result/result_cc_nscc.txt
+
+# DCTCP拥塞控制
+/home/lrh/uet-htsim/htsim/sim/build/datacenter/htsim_uec \
+  -tm /home/lrh/uet-htsim/test_hw/2spine_4leaf_256/connection_matrices/allreduce_8_1MB.cm \
+  -topo /home/lrh/uet-htsim/test_hw/2spine_4leaf_256/leaf_spine_256.topo \
+  -debug \
+  -sender_cc_algo dctcp \
+  -queue_type composite_ecn \
+  -end 2000 \
+  > /home/lrh/uet-htsim/test_hw/2spine_4leaf_256/result/result_cc_dctcp.txt
+
+# Constant拥塞控制（基准）
+/home/lrh/uet-htsim/htsim/sim/build/datacenter/htsim_uec \
+  -tm /home/lrh/uet-htsim/test_hw/2spine_4leaf_256/connection_matrices/allreduce_8_1MB.cm \
+  -topo /home/lrh/uet-htsim/test_hw/2spine_4leaf_256/leaf_spine_256.topo \
+  -debug \
+  -sender_cc_algo constant \
+  -queue_type composite \
+  -end 2000 \
+  > /home/lrh/uet-htsim/test_hw/2spine_4leaf_256/result/result_cc_constant.txt
+
+# RCCC拥塞控制（纯接收端模式）
+/home/lrh/uet-htsim/htsim/sim/build/datacenter/htsim_uec \
+  -tm /home/lrh/uet-htsim/test_hw/2spine_4leaf_256/connection_matrices/allreduce_8_1MB.cm \
+  -topo /home/lrh/uet-htsim/test_hw/2spine_4leaf_256/leaf_spine_256.topo \
+  -debug \
+  -receiver_cc_only \
+  -force_disable_oversubscribed_cc \
+  -queue_type composite \
+  -end 2000 \
+  > /home/lrh/uet-htsim/test_hw/2spine_4leaf_256/result/result_cc_rccc.txt
+
+# RCCC + 过载CC（接收端增强模式）
+/home/lrh/uet-htsim/htsim/sim/build/datacenter/htsim_uec \
+  -tm /home/lrh/uet-htsim/test_hw/2spine_4leaf_256/connection_matrices/allreduce_8_1MB.cm \
+  -topo /home/lrh/uet-htsim/test_hw/2spine_4leaf_256/leaf_spine_256.topo \
+  -debug \
+  -receiver_cc_only \
+  -Ai 0.01 \
+  -Md 0.5 \
+  -alpha 0.5 \
+  -queue_type composite_ecn \
+  -end 2000 \
+  > /home/lrh/uet-htsim/test_hw/2spine_4leaf_256/result/result_cc_rccc_os.txt
+
+# NSCC + RCCC混合模式（发送端+接收端）
+/home/lrh/uet-htsim/htsim/sim/build/datacenter/htsim_uec \
+  -tm /home/lrh/uet-htsim/test_hw/2spine_4leaf_256/connection_matrices/allreduce_8_1MB.cm \
+  -topo /home/lrh/uet-htsim/test_hw/2spine_4leaf_256/leaf_spine_256.topo \
+  -debug \
+  -sender_cc_algo nscc \
+  -receiver_cc \
+  -queue_type composite \
+  -end 2000 \
+  > /home/lrh/uet-htsim/test_hw/2spine_4leaf_256/result/result_cc_nscc_rccc.txt

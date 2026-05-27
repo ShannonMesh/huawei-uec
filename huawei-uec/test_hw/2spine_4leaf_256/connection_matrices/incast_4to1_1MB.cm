@@ -1,0 +1,6 @@
+Nodes 256
+Connections 4
+0->0 start 0 size 1048576
+1->0 start 0 size 1048576
+2->0 start 0 size 1048576
+3->0 start 0 size 1048576

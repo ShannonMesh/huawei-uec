@@ -1,0 +1,73 @@
+{
+  "experiments": [
+    {
+      "name": "1024n_1028c_2MB_8os_constant_outcast",
+      "command": "/home/lrh/uet-htsim/htsim/sim/build/datacenter/htsim_uec",
+      "args": [
+        "-tm", "/home/lrh/uet-htsim/htsim/sim/datacenter/connection_matrices/perm_1024n_1024c_outcast_0u_2000000b.cm",
+        "-topo", "/home/lrh/uet-htsim/htsim/sim/datacenter/topologies/leaf_spine_1024_oversub_8-1.topo",
+        "-debug",
+        "-sender_cc_algo", "constant",
+        "-queue_type", "composite",
+        "-end", "10000",
+        "-q", "300",
+        "-log", "tor_upqueue",
+        "-log","nic",
+        "-logtime_us", "20"
+      ],
+      "output": "/home/lrh/uet-htsim/test_hw/2spine_4leaf_256/result/result_1024n_1028c_2MB_8os_constant_outcast.txt",
+      "log": "/home/lrh/uet-htsim/test_hw/2spine_4leaf_256/result/result_1024n_1028c_2MB_8os_constant_outcast.log"
+    },
+    {
+      "name": "1024n_1028c_2MB_8os_nscc_outcast",
+      "command": "/home/lrh/uet-htsim/htsim/sim/build/datacenter/htsim_uec",
+      "args": [
+        "-tm", "/home/lrh/uet-htsim/htsim/sim/datacenter/connection_matrices/perm_1024n_1024c_outcast_0u_2000000b.cm",
+        "-topo", "/home/lrh/uet-htsim/htsim/sim/datacenter/topologies/leaf_spine_1024_oversub_8-1.topo",
+        "-debug",
+        "-sender_cc_algo", "nscc",
+        "-queue_type", "composite",
+        "-end", "10000",
+        "-q", "300",
+        "-log", "tor_upqueue",
+        "-log","nic",
+        "-logtime_us", "20"
+      ],
+      "output": "/home/lrh/uet-htsim/test_hw/2spine_4leaf_256/result/result_1024n_1028c_2MB_8os_nscc_outcast.txt",
+      "log": "/home/lrh/uet-htsim/test_hw/2spine_4leaf_256/result/result_1024n_1028c_2MB_8os_nscc_outcast.log"
+    },
+    {
+      "name": "1024n_1028c_2MB_8os_rccc_outcast",
+      "command": "/home/lrh/uet-htsim/htsim/sim/build/datacenter/htsim_uec",
+      "args": [
+        "-tm", "/home/lrh/uet-htsim/htsim/sim/datacenter/connection_matrices/perm_1024n_1024c_outcast_0u_2000000b.cm",
+        "-topo", "/home/lrh/uet-htsim/htsim/sim/datacenter/topologies/leaf_spine_1024_oversub_8-1.topo",
+        "-receiver_cc_only",
+        "-q", "300",
+        "-end", "10000",
+        "-log", "tor_upqueue",
+        "-log","nic",
+        "-logtime_us", "20"
+      ],
+      "output": "/home/lrh/uet-htsim/test_hw/2spine_4leaf_256/result/result_1024n_1028c_2MB_8os_rccc_outcast.txt",
+      "log": "/home/lrh/uet-htsim/test_hw/2spine_4leaf_256/result/result_1024n_1028c_2MB_8os_rccc_outcast.log"
+    },
+    {
+      "name": "1024n_1028c_2MB_8os_nscc_rccc_outcast",
+      "command": "/home/lrh/uet-htsim/htsim/sim/build/datacenter/htsim_uec",
+      "args": [
+        "-tm", "/home/lrh/uet-htsim/htsim/sim/datacenter/connection_matrices/perm_1024n_1024c_outcast_0u_2000000b.cm",
+        "-topo", "/home/lrh/uet-htsim/htsim/sim/datacenter/topologies/leaf_spine_1024_oversub_8-1.topo",
+        "-sender_cc_algo", "nscc",
+        "-receiver_cc_only",
+        "-q", "300",
+        "-end", "10000",
+        "-log", "tor_upqueue",
+        "-log","nic",
+        "-logtime_us", "20"
+      ],
+      "output": "/home/lrh/uet-htsim/test_hw/2spine_4leaf_256/result/result_1024n_1028c_2MB_8os_nscc_rccc_outcast.txt",
+      "log": "/home/lrh/uet-htsim/test_hw/2spine_4leaf_256/result/result_1024n_1028c_2MB_8os_nscc_rccc_outcast.log"
+    }
+  ]
+}

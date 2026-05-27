@@ -1,0 +1,143 @@
+{
+  "experiments": [
+    {
+      "name": "constant_composite_p2p",
+      "command": "/home/lrh/uet-htsim/htsim/sim/build/datacenter/htsim_uec",
+      "args": [
+        "-tm", "/home/lrh/uet-htsim/test_hw/2spine_4leaf_256/connection_matrices/p2p64.cm",
+        "-topo", "/home/lrh/uet-htsim/test_hw/2spine_4leaf_256/leaf_spine_256.topo",
+        "-debug",
+        "-log", "nic",
+        "-log", "tor_downqueue",
+        "-logtime_us", "10",
+        "-load_balancing_algo", "random",
+        "-strat","ecmp_host",
+        "-sender_cc_algo", "constant",
+        "-queue_type", "composite",
+        "-ecn_enqueue",
+        "-log", "cwnd",
+        "-end", "0",
+        "-q", "300"
+      ],
+      "output": "/home/lrh/uet-htsim/test_hw/2spine_4leaf_256/result/result_constant_composite_p2p.txt",
+      "log": "/home/lrh/uet-htsim/test_hw/2spine_4leaf_256/result/result_constant_composite_p2p.log"
+    },
+    {
+      "name": "nscc_composite_p2p",
+      "command": "/home/lrh/uet-htsim/htsim/sim/build/datacenter/htsim_uec",
+      "args": [
+        "-tm", "/home/lrh/uet-htsim/test_hw/2spine_4leaf_256/connection_matrices/p2p64.cm",
+        "-topo", "/home/lrh/uet-htsim/test_hw/2spine_4leaf_256/leaf_spine_256.topo",
+        "-debug",
+        "-log", "nic",
+        "-log", "tor_downqueue",
+        "-logtime_us", "10",
+        "-load_balancing_algo", "random",
+        "-strat","ecmp_host",
+        "-sender_cc_algo", "nscc",
+        "-queue_type", "composite",
+        "-ecn_enqueue",
+        "-log", "cwnd",
+        "-end", "0",
+        "-q", "300"
+      ],
+      "output": "/home/lrh/uet-htsim/test_hw/2spine_4leaf_256/result/result_nscc_composite_p2p.txt",
+      "log": "/home/lrh/uet-htsim/test_hw/2spine_4leaf_256/result/result_nscc_composite_p2p.log"
+    },
+    {
+      "name": "rccc_composite_p2p",
+      "command": "/home/lrh/uet-htsim/htsim/sim/build/datacenter/htsim_uec",
+      "args": [
+        "-tm", "/home/lrh/uet-htsim/test_hw/2spine_4leaf_256/connection_matrices/p2p64.cm",
+        "-topo", "/home/lrh/uet-htsim/test_hw/2spine_4leaf_256/leaf_spine_256.topo",
+        "-debug",
+        "-log", "nic",
+        "-log", "tor_downqueue",
+        "-logtime_us", "10",
+        "-load_balancing_algo", "random",
+        "-strat","ecmp_host",
+        "-receiver_cc_only",
+        "-queue_type", "composite",
+        "-ecn_enqueue",
+        "-log", "cwnd",
+        "-end", "0",
+        "-q", "300"
+      ],
+      "output": "/home/lrh/uet-htsim/test_hw/2spine_4leaf_256/result/result_rccc_composite_p2p.txt",
+      "log": "/home/lrh/uet-htsim/test_hw/2spine_4leaf_256/result/result_rccc_composite_p2p.log"
+    },
+    {
+      "name": "hashx_nscc_composite_p2p",
+      "command": "/home/lrh/uet-htsim/htsim/sim/build/datacenter/htsim_uec",
+      "args": [
+        "-tm", "/home/lrh/uet-htsim/test_hw/2spine_4leaf_256/connection_matrices/p2p64.cm",
+        "-topo", "/home/lrh/uet-htsim/test_hw/2spine_4leaf_256/leaf_spine_256.topo",
+        "-debug",
+        "-log", "nic",
+        "-log", "tor_downqueue",
+        "-logtime_us", "10",
+        "-load_balancing_algo", "random",
+        "-hashx_weight", "2",
+        "-strat","hashx",
+        "-sender_cc_algo", "nscc",
+        "-queue_type", "composite",
+        "-ecn_enqueue",
+        "-log", "cwnd",
+        "-end", "0",
+        "-q", "300"
+      ],
+      "output": "/home/lrh/uet-htsim/test_hw/2spine_4leaf_256/result/result_hashx_nscc_composite_p2p.txt",
+      "log": "/home/lrh/uet-htsim/test_hw/2spine_4leaf_256/result/result_hashx_nscc_composite_p2p.log"
+    },
+    {
+      "name": "hashx_fastcn_nscc_composite_p2p",
+      "command": "/home/lrh/uet-htsim/htsim/sim/build/datacenter/htsim_uec",
+      "args": [
+        "-tm", "/home/lrh/uet-htsim/test_hw/2spine_4leaf_256/connection_matrices/p2p64.cm",
+        "-topo", "/home/lrh/uet-htsim/test_hw/2spine_4leaf_256/leaf_spine_256.topo",
+        "-debug",
+        "-log", "nic",
+        "-log", "tor_downqueue",
+        "-logtime_us", "10",
+        "-load_balancing_algo", "random",
+        "-hashx_weight", "2",
+        "-strat","hashx",
+        "-sender_cc_algo", "nscc",
+        "-enable_fastcn", 
+        "-queue_type", "composite",
+        "-ecn_enqueue",
+        "-log", "cwnd",
+        "-end", "0",
+        "-q", "300"
+      ],
+      "output": "/home/lrh/uet-htsim/test_hw/2spine_4leaf_256/result/result_hashx_fastcn_nscc_composite_p2p.txt",
+      "log": "/home/lrh/uet-htsim/test_hw/2spine_4leaf_256/result/result_hashx_fastcn_nscc_composite_p2p.log" 
+    },
+    {
+      "name": "hashx_fastcn_z_incast_composite_p2p",
+      "command": "/home/lrh/uet-htsim/htsim/sim/build/datacenter/htsim_uec",
+      "args": [
+        "-tm", "/home/lrh/uet-htsim/test_hw/2spine_4leaf_256/connection_matrices/p2p64.cm",
+        "-topo", "/home/lrh/uet-htsim/test_hw/2spine_4leaf_256/leaf_spine_256.topo",
+        "-debug",
+        "-log", "nic",
+        "-log", "tor_downqueue",
+        "-logtime_us", "10",
+        "-load_balancing_algo", "random",
+        "-hashx_weight", "2",
+        "-strat","hashx",
+        "-sender_cc_algo", "z_incast",
+        "-z_incast_alpha", "0.9",
+        "-z_incast_n", "64",
+        "-enable_fastcn", 
+        "-queue_type", "composite",
+        "-ecn_enqueue",
+        "-log", "cwnd",
+        "-end", "0",
+        "-q", "300"
+      ],
+      "output": "/home/lrh/uet-htsim/test_hw/2spine_4leaf_256/result/result_hashx_fastcn_z_incast_composite_p2p.txt",
+      "log": "/home/lrh/uet-htsim/test_hw/2spine_4leaf_256/result/result_hashx_fastcn_z_incast_composite_p2p.log" 
+    }
+  ]
+}

@@ -1,0 +1,42 @@
+# Experiment Group 3: Routing Strategies Comparison (NSCC + composite)
+# Compare different routing strategies with NSCC
+
+# ECMP路由（默认）
+/home/lrh/uet-htsim/htsim/sim/build/datacenter/htsim_uec \
+  -tm /home/lrh/uet-htsim/test_hw/2spine_4leaf_256/connection_matrices/incast_8to1_1MB.cm \
+  -topo /home/lrh/uet-htsim/test_hw/2spine_4leaf_256/leaf_spine_256.topo \
+  -debug \
+  -sender_cc_algo nscc \
+  -queue_type composite \
+  -strat ecmp_host \
+  > /home/lrh/uet-htsim/test_hw/2spine_4leaf_256/result/result_route_nscc_ecmp.txt
+
+# ECMP自适应路由
+/home/lrh/uet-htsim/htsim/sim/build/datacenter/htsim_uec \
+  -tm /home/lrh/uet-htsim/test_hw/2spine_4leaf_256/connection_matrices/incast_8to1_1MB.cm \
+  -topo /home/lrh/uet-htsim/test_hw/2spine_4leaf_256/leaf_spine_256.topo \
+  -debug \
+  -sender_cc_algo nscc \
+  -queue_type composite \
+  -strat ecmp_ar \
+  > /home/lrh/uet-htsim/test_hw/2spine_4leaf_256/result/result_route_nscc_ecmp_ar.txt
+
+# ECMP轮询路由
+/home/lrh/uet-htsim/htsim/sim/build/datacenter/htsim_uec \
+  -tm /home/lrh/uet-htsim/test_hw/2spine_4leaf_256/connection_matrices/incast_8to1_1MB.cm \
+  -topo /home/lrh/uet-htsim/test_hw/2spine_4leaf_256/leaf_spine_256.topo \
+  -debug \
+  -sender_cc_algo nscc \
+  -queue_type composite \
+  -strat ecmp_rr \
+  > /home/lrh/uet-htsim/test_hw/2spine_4leaf_256/result/result_route_nscc_ecmp_rr.txt
+
+# 反应式ECN路由
+/home/lrh/uet-htsim/htsim/sim/build/datacenter/htsim_uec \
+  -tm /home/lrh/uet-htsim/test_hw/2spine_4leaf_256/connection_matrices/incast_8to1_1MB.cm \
+  -topo /home/lrh/uet-htsim/test_hw/2spine_4leaf_256/leaf_spine_256.topo \
+  -debug \
+  -sender_cc_algo nscc \
+  -queue_type composite \
+  -strat reactive_ecn \
+  > /home/lrh/uet-htsim/test_hw/2spine_4leaf_256/result/result_route_nscc_reactive_ecn.txt

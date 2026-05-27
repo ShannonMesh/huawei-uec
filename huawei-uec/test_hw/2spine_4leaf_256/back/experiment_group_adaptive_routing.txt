@@ -1,0 +1,35 @@
+# Experiment Group 6: Adaptive Routing Methods Comparison (NSCC + ecmp_ar)
+# Compare different adaptive routing methods with NSCC
+
+# 基于队列的自适应路由
+/home/lrh/uet-htsim/htsim/sim/build/datacenter/htsim_uec \
+  -tm /home/lrh/uet-htsim/test_hw/2spine_4leaf_256/connection_matrices/incast_8to1_1MB.cm \
+  -topo /home/lrh/uet-htsim/test_hw/2spine_4leaf_256/leaf_spine_256.topo \
+  -debug \
+  -sender_cc_algo nscc \
+  -queue_type composite \
+  -strat ecmp_ar \
+  -ar_method queue \
+  > /home/lrh/uet-htsim/test_hw/2spine_4leaf_256/result/result_ar_nscc_queue.txt
+
+# 基于带宽的自适应路由
+/home/lrh/uet-htsim/htsim/sim/build/datacenter/htsim_uec \
+  -tm /home/lrh/uet-htsim/test_hw/2spine_4leaf_256/connection_matrices/incast_8to1_1MB.cm \
+  -topo /home/lrh/uet-htsim/test_hw/2spine_4leaf_256/leaf_spine_256.topo \
+  -debug \
+  -sender_cc_algo nscc \
+  -queue_type composite \
+  -strat ecmp_ar \
+  -ar_method bandwidth \
+  > /home/lrh/uet-htsim/test_hw/2spine_4leaf_256/result/result_ar_nscc_bandwidth.txt
+
+# 基于队列和带宽的自适应路由
+/home/lrh/uet-htsim/htsim/sim/build/datacenter/htsim_uec \
+  -tm /home/lrh/uet-htsim/test_hw/2spine_4leaf_256/connection_matrices/incast_8to1_1MB.cm \
+  -topo /home/lrh/uet-htsim/test_hw/2spine_4leaf_256/leaf_spine_256.topo \
+  -debug \
+  -sender_cc_algo nscc \
+  -queue_type composite \
+  -strat ecmp_ar \
+  -ar_method qb \
+  > /home/lrh/uet-htsim/test_hw/2spine_4leaf_256/result/result_ar_nscc_qb.txt

@@ -1,0 +1,27 @@
+# Constant算法
+/home/lrh/uet-htsim/htsim/sim/build/datacenter/htsim_uec \
+  -tm /home/lrh/uet-htsim/test_hw/2spine_4leaf_256/connection_matrices/permutation_64pair_10MB.cm \
+  -topo /home/lrh/uet-htsim/test_hw/2spine_4leaf_256/leaf_spine_256.topo \
+  -debug \
+  -log nic \
+  -logtime_us 20 \
+  -sender_cc_algo constant \
+  -queue_type composite \
+  -end 0 \
+  -q 300 \
+  -o /home/lrh/uet-htsim/test_hw/2spine_4leaf_256/result/result_constant_composite_64pair_10MB.log \
+  > /home/lrh/uet-htsim/test_hw/2spine_4leaf_256/result/result_constant_composite_64pair_10MB.txt
+
+# NSCC算法
+/home/lrh/uet-htsim/htsim/sim/build/datacenter/htsim_uec \
+  -tm /home/lrh/uet-htsim/test_hw/2spine_4leaf_256/connection_matrices/permutation_64pair_10MB.cm \
+  -topo /home/lrh/uet-htsim/test_hw/2spine_4leaf_256/leaf_spine_256.topo \
+  -debug \
+  -log nic \
+  -logtime_us 20 \
+  -sender_cc_algo nscc \
+  -queue_type composite \
+  -end 0 \
+  -q 300 \
+  -o /home/lrh/uet-htsim/test_hw/2spine_4leaf_256/result/result_nscc_composite_64pair_10MB.log \
+  > /home/lrh/uet-htsim/test_hw/2spine_4leaf_256/result/result_nscc_composite_64pair_10MB.txt
