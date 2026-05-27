@@ -69,6 +69,13 @@ public:
         p->_trim_hop = {};
         p->_trim_direction = NONE;
 
+        p->_ecn_marked = false;
+        p->_tx_time = 0;
+        p->_src_sent = false;
+        p->_src_is_singlepath = false;
+
+        p->_path_select_result = PATH_SELECT_UNDEFINED;  // 初始为未定状态
+
         return p;
     }
   
@@ -120,6 +127,24 @@ public:
     inline void set_sink_flow_id(uint32_t id) { _sink_flow_id = id; }
     inline uint32_t get_sink_flow_id() const { return _sink_flow_id; }
 
+    inline bool is_ecn_marked() const { return _ecn_marked; }
+    inline void set_ecn_marked(bool ecn) { _ecn_marked = ecn; }
+
+    inline simtime_picosec tx_time() const { return _tx_time; }
+    inline void set_tx_time(simtime_picosec t) { _tx_time = t; }
+
+    inline bool src_sent() const { return _src_sent; }
+    inline void set_src_sent(bool v) { _src_sent = v; }
+
+    inline bool src_is_singlepath() const { return _src_is_singlepath; }
+    inline void set_src_is_singlepath(bool v) { _src_is_singlepath = v; }
+
+    // 路径选择结果操作函数
+    inline void set_path_select_single() { _path_select_result = PATH_SELECT_SINGLE; }
+    inline void set_path_select_multi() { _path_select_result = PATH_SELECT_MULTI; }
+    inline void set_path_select_undefined() { _path_select_result = PATH_SELECT_UNDEFINED; }
+    inline uint8_t path_select_result() const { return _path_select_result; }
+
     virtual PktPriority priority() const {
         if (_is_header) {
             return Packet::PRIO_HI;
@@ -146,7 +171,23 @@ protected:
     
     uint32_t _src;
     uint32_t _sink_flow_id;
+
+    bool _ecn_marked;
+    simtime_picosec _tx_time;
+    bool _src_sent;
+    bool _src_is_singlepath;
+
+    // 路径选择结果：0=未定, 1=单路径, 2=多路径
+    // 由交换机设置，队列消耗后回退到未定状态
+    uint8_t _path_select_result;
+
     static PacketDB<UecDataPacket> _packetdb;
+
+public:
+    // 路径选择结果枚举值
+    static constexpr uint8_t PATH_SELECT_UNDEFINED = 0;
+    static constexpr uint8_t PATH_SELECT_SINGLE = 1;
+    static constexpr uint8_t PATH_SELECT_MULTI = 2;
 };
 
 class UecPullPacket : public UecBasePacket {
@@ -388,7 +429,12 @@ public:
                                               double we_w_ratio = 0.0,
                                               seq_t cnp_psn = 0,
                                               double dq_dt = 0.0,
-                                              mem_b queue_capacity = 0) {
+                                              mem_b queue_capacity = 0,
+                                              uint32_t switch_id = 0,
+                                              int port_id = 0,
+                                              mem_b queue_len = 0,
+                                              linkspeed_bps link_rate = 0,
+                                              simtime_picosec send_time = 0) {
         UecEcnNotifyPacket* p = _packetdb.allocPacket();
         p->set_attrs(flow, ACKSIZE, 0);
         // Note: No set_route() call here. ECN notification packets don't have a predefined route.
@@ -410,6 +456,13 @@ public:
         p->_cnp_psn = cnp_psn;  // PSN of the packet that triggered CNP
         p->_dq_dt = dq_dt;  // Queue depth change rate (bytes per second)
         p->_queue_capacity = queue_capacity;  // Queue capacity (maxsize)
+
+        p->_switch_id = switch_id;
+        p->_port_id = port_id;
+        p->_queue_len = queue_len;
+        p->_link_rate = link_rate;
+        p->_send_time = send_time;
+
         return p;
     }
 
@@ -427,6 +480,15 @@ public:
     inline double dq_dt() const { return _dq_dt; }  // Return the queue depth change rate
     inline mem_b queue_capacity() const { return _queue_capacity; }  // Return the queue capacity
 
+    inline uint32_t switch_id() const { return _switch_id; }
+    inline int port_id() const { return _port_id; }
+
+    inline mem_b queue_len() const { return _queue_len; }
+
+    inline linkspeed_bps link_rate() const { return _link_rate; }
+
+    inline simtime_picosec send_time() const { return _send_time; }
+
     virtual PktPriority priority() const { return Packet::PRIO_HI; }
 
     virtual ~UecEcnNotifyPacket() {}
@@ -442,6 +504,12 @@ protected:
     double _dq_dt;  // Queue depth change rate (bytes per second)
     mem_b _queue_capacity;  // Queue capacity (maxsize)
     static PacketDB<UecEcnNotifyPacket> _packetdb;
+
+    uint32_t _switch_id;
+    int _port_id;
+    mem_b _queue_len;
+    linkspeed_bps _link_rate;
+    simtime_picosec _send_time;
 };
 
 #endif

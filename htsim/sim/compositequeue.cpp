@@ -109,16 +109,6 @@ int CompositeQueue::decide_ECN() {
         if ((uint64_t)random() < p) {
             return ECN_MARK;
         }
-    } else if (_nscc_fastcn && _queuesize_low > 0) {
-        // NSCC fastcn 模式：队列深度在 0 和 _ecn_minthresh 之间
-        // 概率标记：越接近 0，标记概率越高
-        uint64_t p = (0x7FFFFFFF * (_ecn_minthresh - _queuesize_low)) / _ecn_minthresh;
-        // 限制最大概率为 25%
-        p = p;
-        if ((uint64_t)random() < p) {
-            return ECN_LOW_WATERMARK;
-        }
-        // random();
     }
     // random();
     return ECN_NO_MARK;
@@ -216,60 +206,73 @@ void CompositeQueue::mark_ECN(Packet& pkt, bool on_enqueue) {
         return;  // 时机不匹配，不执行标记
     }
 
+    // 只对 DATA 包进行 ECN 标记处理
+    if (pkt.type() != UECDATA) {
+        return;  // 非 DATA 包，不处理
+    }
+
+    UecDataPacket* uec_pkt = static_cast<UecDataPacket*>(&pkt);
+
     // 使用 decide_ECN 函数判断是否需要标记 ECN
     int ecn_decision = decide_ECN();
 
+    // 在决定ECN后立即保存路径选择结果，并恢复为未定状态
+    uint8_t saved_path_result = uec_pkt->path_select_result();
+    if (saved_path_result != UecDataPacket::PATH_SELECT_UNDEFINED) {
+        uec_pkt->set_path_select_undefined();
+    }
+    // TODO: 后续可以使用 saved_path_result
+
     if (ecn_decision == ECN_MARK) {
-        uint32_t old_flags = pkt.flags();
-        bool already_marked = (old_flags & _ecn_tag) == _ecn_tag;
-
-        pkt.set_flags(old_flags | _ecn_tag);
-
-        // 只在启用 ECN notify 回传时才发送通知包
-        if (_enable_ecn_notify && !already_marked && pkt.type() == UECDATA) {
-            UecDataPacket* uec_pkt = static_cast<UecDataPacket*>(&pkt);
-            uint32_t ecn_notify_dst = uec_pkt->get_src();
-            uint32_t ecn_notify_flow_id = uec_pkt->get_sink_flow_id();
-
-            if (ecn_notify_dst != UINT32_MAX && ecn_notify_flow_id != 0) {
-                double we_w_ratio = (_w > 0) ? (_we / _w) : 0;
-                mem_b queue_capacity = maxsize();
-                UecEcnNotifyPacket* ecn_notify = UecEcnNotifyPacket::newpkt(
-                    pkt.flow(), ecn_notify_dst,
-                    ecn_notify_flow_id, pkt.pathid(),
-                    _queuesize_low, _queuesize_high, _ecn_tag,
-                    we_w_ratio,
-                    uec_pkt->epsn(),  // Pass the PSN of the packet that triggered CNP
-                    getDqDt(),  // Pass the queue depth change rate
-                    queue_capacity  // Pass the queue capacity
-                );
-                _switch->receivePacket(*ecn_notify);
-
-                const char* timing_str = on_enqueue ? "On Enqueue" : "On Dequeue";
-                cout << "[ECN Notify " << timing_str << "] queue_id=" << _queue_id
-                    << " _queuesize_low=" << _queuesize_low
-                    << " _queuesize_high=" << _queuesize_high
-                    << " ecn_tag=" << _ecn_tag
-                    << " w=" << _w
-                    << " we=" << _we
-                    << " we_w_ratio=" << we_w_ratio
-                    << " cnp_psn=" << uec_pkt->epsn()
-                    << " dq_dt=" << getDqDt()  // Pass the queue depth change rate
-                    << endl;
-            }
+        // 基于反馈状态机判断是否发送 SRC
+        bool should_send_src = false;
+        
+        bool src_sent = uec_pkt->src_sent();           // 是否已反馈过
+        bool src_is_singlepath = uec_pkt->src_is_singlepath();  // 之前反馈时的区域
+        uint8_t current_region = saved_path_result;     // 当前区域（已保存）
+        
+        if (!src_sent) {
+            // 未反馈过：首次触发，发送 SRC
+            should_send_src = true;
+        } else if (!src_is_singlepath && current_region == UecDataPacket::PATH_SELECT_SINGLE) {
+            // 之前是多路径区域，现在是单路径区域：升级反馈，发送 SRC
+            should_send_src = true;
         }
-    } else if (_nscc_fastcn && ecn_decision == ECN_LOW_WATERMARK) {
-        // 低于 low 水线的特殊处理（如需要）
-        // 当前不执行任何操作
+        // 其他情况：
+        // - 多路径区域 -> 多路径区域：同级去重，不发送
+        // - 单路径区域 -> 单路径区域：同级去重，不发送
+        // - 单路径区域 -> 多路径区域：不降级反馈，不发送
+        
+        if (!should_send_src) {
+            return;  // 不需要发送 SRC，直接返回
+        }
+
+        // 标记 ECN 并更新反馈状态
+        uint32_t old_flags = pkt.flags();
+        pkt.set_flags(old_flags | _ecn_tag);
+        
+        // 更新反馈状态（_src_sent 和 _ecn_marked 同态，只更新 _src_sent）
+        uec_pkt->set_src_sent(true);
+        if (current_region == UecDataPacket::PATH_SELECT_SINGLE) {
+            uec_pkt->set_src_is_singlepath(true);
+        } else if (current_region == UecDataPacket::PATH_SELECT_MULTI) {
+            uec_pkt->set_src_is_singlepath(false);
+        }
+
         // 只在启用 ECN notify 回传时才发送通知包
-        if (_enable_ecn_notify && pkt.type() == UECDATA) {
-            UecDataPacket* uec_pkt = static_cast<UecDataPacket*>(&pkt);
+        if (_enable_ecn_notify) {
             uint32_t ecn_notify_dst = uec_pkt->get_src();
             uint32_t ecn_notify_flow_id = uec_pkt->get_sink_flow_id();
 
             if (ecn_notify_dst != UINT32_MAX && ecn_notify_flow_id != 0) {
                 double we_w_ratio = (_w > 0) ? (_we / _w) : 0;
                 mem_b queue_capacity = maxsize();
+                uint32_t switch_id = _switch ? _switch->getID() : 0;
+                int port_id = _queue_id;
+                mem_b queue_len = _queuesize_low;
+                linkspeed_bps link_rate = _bitrate;
+                simtime_picosec send_time = eventlist().now();
+                
                 UecEcnNotifyPacket* ecn_notify = UecEcnNotifyPacket::newpkt(
                     pkt.flow(), ecn_notify_dst,
                     ecn_notify_flow_id, pkt.pathid(),
@@ -277,7 +280,12 @@ void CompositeQueue::mark_ECN(Packet& pkt, bool on_enqueue) {
                     we_w_ratio,
                     uec_pkt->epsn(),  // Pass the PSN of the packet that triggered CNP
                     getDqDt(),  // Pass the queue depth change rate
-                    queue_capacity  // Pass the queue capacity
+                    queue_capacity,  // Pass the queue capacity
+                    switch_id,       // Switch ID
+                    port_id,         // Port ID (using queue_id)
+                    queue_len,       // Current queue length
+                    link_rate,       // Link rate in bps
+                    send_time        // Current timestamp
                 );
                 _switch->receivePacket(*ecn_notify);
 

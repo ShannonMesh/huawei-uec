@@ -13,7 +13,6 @@
 // ECN decision return values
 #define ECN_NO_MARK 0       // 不打标记
 #define ECN_MARK 1          // 打ECN标记
-#define ECN_LOW_WATERMARK 2 // 低于low水线，特殊处理
 
 
 #include <list>

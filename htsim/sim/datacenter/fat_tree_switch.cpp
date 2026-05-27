@@ -459,12 +459,24 @@ Route* FatTreeSwitch::getNextHop(Packet& pkt, BaseQueue* ingress_port){
         FibEntry* e = (*available_hops)[ecmp_choice];
         pkt.set_direction(e->getDirection());
         
+        // 设置路径选择结果到数据包
+        if (pkt.type() == UECDATA) {
+            UecDataPacket* uec_pkt = dynamic_cast<UecDataPacket*>(&pkt);
+            if (uec_pkt) {
+                if (available_hops->size() == 1) {
+                    uec_pkt->set_path_select_single();
+                } else {
+                    uec_pkt->set_path_select_multi();
+                }
+            }
+        }
+        
         return e->getEgressPort();
     }
 
-    //no route table entries for this destination. Add them to FIB or fail. 
+    //no route table entries for this destination. Add them to FIB or fail.
     if (_type == TOR){
-        if ( _ft->cfg().HOST_POD_SWITCH(pkt.dst()) == _id) { 
+        if ( _ft->cfg().HOST_POD_SWITCH(pkt.dst()) == _id) {
             //this host is directly connected!
             uint32_t lookup_flow_id = pkt.flow_id();
             if (pkt.type() == UEC_ECNNOTIFY) {
@@ -473,6 +485,15 @@ Route* FatTreeSwitch::getNextHop(Packet& pkt, BaseQueue* ingress_port){
             HostFibEntry* fe = _fib->getHostRoute(pkt.dst(), lookup_flow_id);
             assert(fe);
             pkt.set_direction(DOWN);
+
+            // 边界情况：TOR下行到直连主机是单路径
+            if (pkt.type() == UECDATA) {
+                UecDataPacket* uec_pkt = dynamic_cast<UecDataPacket*>(&pkt);
+                if (uec_pkt) {
+                    uec_pkt->set_path_select_single();
+                }
+            }
+
             return fe->getEgressPort();
         } else {
             //route packet up!
