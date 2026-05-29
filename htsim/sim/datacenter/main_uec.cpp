@@ -213,6 +213,8 @@ int main(int argc, char **argv) {
                 UecSrc::_sender_cc_algo = UecSrc::CONSTANT;
             else if (!strcmp(argv[i+1],"z_incast"))
                 UecSrc::_sender_cc_algo = UecSrc::Z_INCAST;
+            else if (!strcmp(argv[i+1], "smartt")) 
+                UecSrc::_sender_cc_algo = UecSrc::SMARTT;
             else {
                 cout << "UNKNOWN CC ALGO " << argv[i+1] << endl;
                 exit(1);
@@ -902,7 +904,16 @@ int main(int argc, char **argv) {
             } else if (load_balancing_algo == MIXED){
                 mp = make_unique<UecMpMixed>(path_entropy_size, UecSrc::_debug);
             } else if (load_balancing_algo == HASHX){
-                mp = make_unique<UecMpHashx>(path_entropy_size, UecSrc::_debug, src, dest, ecn_low, ecn_high, hashx_max_weight);
+                    // 先建裸指针，填表之后再 move
+                auto* hashx_mp = new UecMpHashx(path_entropy_size, UecSrc::_debug, src, dest, ecn_low, ecn_high, hashx_max_weight);
+
+                if (!UecMpHashx::_table_built) {
+                    topo[0]->build_multipath_table(hashx_mp);
+                    UecMpHashx::_table_built = true;
+                }
+                    // 设置路径冷却时间
+                hashx_mp->setPathCooldown(2 * network_max_unloaded_rtt);
+                mp = unique_ptr<UecMultipath>(hashx_mp);
             } else if (load_balancing_algo == RANDOM){
                 mp = make_unique<UecMpRandom>(path_entropy_size, UecSrc::_debug);
             } else {

@@ -6,6 +6,10 @@
 #include <optional>
 #include "eventlist.h"
 #include "buffer_reps.h"
+#include <map>
+#include <unordered_map>
+#include <limits>
+
 
 class UecMultipath {
 public:
@@ -26,6 +30,12 @@ public:
      * @param ecn_tag ECN tag value
      */
     virtual void processEv(uint16_t path_id, uint64_t queue_size_low, uint64_t queue_size_high, int ecn_tag) {};
+
+    virtual void processEv(uint16_t path_id, uint32_t switch_id, uint32_t port_id) {};
+
+    virtual bool lastActionWasLB() const { return false; }
+
+    virtual void processEv(uint16_t path_id, PathFeedback feedback, simtime_picosec rtt) {}
     /**
      * @param uint64_t seq_sent The sequence number to be sent
      * @param uint64_t cur_cwnd_in_pkts The current congestion window in packets.
@@ -109,7 +119,13 @@ public:
                uint64_t ecn_low = 0, uint64_t ecn_high = 0, uint32_t max_weight = 8);
     void processEv(uint16_t path_id, PathFeedback feedback) override;
     void processEv(uint16_t path_id, uint64_t queue_size_low, uint64_t queue_size_high, int ecn_tag) override;
+    void processEv(uint16_t path_id, uint32_t switch_id, uint32_t port_id) override;  
+    void processEv(uint16_t path_id, PathFeedback feedback, simtime_picosec rtt) override;
     uint16_t nextEntropy(uint64_t seq_sent, uint64_t cur_cwnd_in_pkts) override;
+    void addMultipathEntry(uint32_t switch_id, uint32_t port_id, const std::vector<uint32_t>& alternatives);
+    void setPathCooldown(simtime_picosec cooldown) { _path_cooldown = cooldown; }
+    static std::map<std::pair<uint32_t,uint32_t>, std::vector<uint32_t>> _multipath_table;
+    static bool _table_built;   
 private:
     uint16_t _no_of_paths;       // must be a power of 2
     uint16_t _current_path;      // current path index for round-robin
@@ -119,6 +135,28 @@ private:
     uint64_t _ecn_low;           // ECN low threshold (in bytes)
     uint64_t _ecn_high;          // ECN high threshold (in bytes)
     uint32_t _max_weight;        // maximum weight value (default: 8)
+
+
+    bool     _last_action_was_lb = false;
+    uint32_t _cached_entropy     = 0;
+    simtime_picosec _path_cooldown = 0;
+
+    struct PathStat {
+    simtime_picosec avg_rtt      = 0;
+    uint64_t        ecn_count    = 0;
+    uint64_t        total_count  = 0;
+    simtime_picosec last_bad_time = 0;
+    uint64_t        switch_count  = 0; 
+    };
+
+    static std::unordered_map<uint32_t, PathStat> _path_stats;  
+
+    void handleLB(uint16_t path_id, const std::vector<uint32_t>& alternatives);
+    uint32_t selectBestAlternative(const std::vector<uint32_t>& candidates, uint32_t bad_path);
+    bool lastActionWasLB() const override { return _last_action_was_lb; }
+
+    uint32_t _next_entropy = 0;
+    bool allEntropiesTried() const { return _next_entropy >= _no_of_paths; }
 };
 
 class UecMpRandom : public UecMultipath {

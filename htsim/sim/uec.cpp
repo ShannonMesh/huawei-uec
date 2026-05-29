@@ -614,6 +614,13 @@ UecSrc::UecSrc(TrafficLogger* trafficLogger,
                 updateCwndOnNack = &UecSrc::updateCwndOnNack_Z_INCAST;
                 processEcnNotifyHandler = &UecSrc::processEcnNotify_Z_INCAST;
                 break;
+
+            case SMARTT:
+                updateCwndOnAck = &UecSrc::updateCwndOnAck_NSCC;  // 增窗复用NSCC
+                updateCwndOnNack = &UecSrc::updateCwndOnNack_NSCC;
+                processEcnNotifyHandler = &UecSrc::processEcnNotify_SMARTT;
+                break;
+
             default:
                 cout << "Unknown CC algo specified " << _sender_cc_algo << endl;
                 assert(0);
@@ -1086,7 +1093,8 @@ void UecSrc::processAck(const UecAckPacket& pkt) {
     //assert(_in_flight >= 0);
 
 
-    _mp->processEv(pkt.ev(), pkt.ecn_echo() ? UecMultipath::PATH_ECN : UecMultipath::PATH_GOOD);
+    // _mp->processEv(pkt.ev(), pkt.ecn_echo() ? UecMultipath::PATH_ECN : UecMultipath::PATH_GOOD);
+    _mp->processEv(pkt.ev(),  pkt.ecn_echo() ? UecMultipath::PATH_ECN : UecMultipath::PATH_GOOD, raw_rtt);
 
     if(_flow.flow_id() == _debug_flowid ){
         cout <<  timeAsUs(eventlist().now()) << " flowid " << _flow.flow_id() << " track_avg_rtt " << timeAsUs(get_avg_delay())
@@ -1844,6 +1852,42 @@ void UecSrc::update_fastcn_delay(simtime_picosec raw_rtt, bool update_avg, bool 
     }
 }
 
+void UecSrc::processEcnNotify_SMARTT(const UecEcnNotifyPacket& pkt) {
+    simtime_picosec src_rtt = eventlist().now() - pkt.send_time();
+    
+    double severity = (pkt.queue_capacity() > 0) ?
+        (double)pkt.queue_len() / (double)pkt.queue_capacity() : 0.0;
+    
+    double my_rate = (_base_rtt > 0) ?
+        (double)_cwnd / timeAsSec(_base_rtt) : 0.0;
+    double link_rate = (double)pkt.link_rate();
+    double reaction_factor = (link_rate > 0) ? my_rate / link_rate : 1.0;
+    
+    // 频率控制
+    simtime_picosec targetq = (simtime_picosec)(pkt.queue_len() * reaction_factor);
+    if (targetq > 0 && src_rtt / targetq > eventlist().now() - _last_dec_time) {
+        return;
+    }
+    
+    // 比例降窗
+    mem_b before = _cwnd;
+    if (severity > SMARTTCONV_SEVERE_THRESHOLD) {
+        _cwnd = (mem_b)(_cwnd * (1.0 - SMARTTCONV_BETA_SEVERE));
+    } else {
+        _cwnd = (mem_b)(_cwnd * (1.0 - SMARTTCONV_BETA_MILD * severity));
+    }
+    _cwnd = max(_cwnd, _min_cwnd);
+    _last_dec_time = eventlist().now();
+    
+
+    cout << "[SMARTT] " << timeAsUs(eventlist().now())
+         << " flowid " << _flow.flow_id()
+         << " CC_DEC " << before << "->" << _cwnd
+         << " severity=" << severity
+         << " reaction=" << reaction_factor << endl;
+}
+
+
 simtime_picosec UecSrc::get_avg_delay(){
     return _avg_delay;
 }
@@ -2063,10 +2107,19 @@ void UecSrc::processEcnNotify(const UecEcnNotifyPacket& pkt) {
          << " ecn_tag=" << pkt.ecn_tag()
          << " size=" << pkt.size()
          << " type=" << pkt.type()
+         << " recv Notify switch_id=" << pkt.switch_id() 
+         << " port_id=" << pkt.port_id()
          << endl;
 
     // Process ECN notification with detailed queue information
-    _mp->processEv(pkt.ev(), pkt.queue_size_low(), pkt.queue_size_high(), pkt.ecn_tag());
+    // _mp->processEv(pkt.ev(), pkt.queue_size_low(), pkt.queue_size_high(), pkt.ecn_tag());
+    _mp->processEv(pkt.ev(), (uint32_t)pkt.switch_id(), pkt.port_id());
+
+    if (_mp->lastActionWasLB()){
+        _fi_count = 0;
+        _increase = false;
+        return;
+    } 
 
     // ============================================
     // 关键：通过函数指针调用算法特定的ECN处理函数

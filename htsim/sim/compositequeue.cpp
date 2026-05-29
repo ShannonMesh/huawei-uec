@@ -6,6 +6,7 @@
 #include "ecn.h"
 #include "uecpacket.h"
 
+
 static int global_queue_id=0;
 #define DEBUG_QUEUE_ID -1 // set to queue ID to enable debugging
 
@@ -268,7 +269,7 @@ void CompositeQueue::mark_ECN(Packet& pkt, bool on_enqueue) {
                 double we_w_ratio = (_w > 0) ? (_we / _w) : 0;
                 mem_b queue_capacity = maxsize();
                 uint32_t switch_id = _switch ? _switch->getID() : 0;
-                int port_id = _queue_id;
+                int port_id = _switch ? _switch->getPortId(this) : -1;
                 mem_b queue_len = _queuesize_low;
                 linkspeed_bps link_rate = _bitrate;
                 simtime_picosec send_time = eventlist().now();

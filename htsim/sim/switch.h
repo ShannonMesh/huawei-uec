@@ -49,7 +49,7 @@ class Switch : public EventSource, public Drawable, public PacketSink {
     virtual Route* getNextHop(Packet& pkt, BaseQueue* ingress_port) {abort();};
 
     BaseQueue* getPort(int id) { assert(id >= 0); if ((unsigned int)id<_ports.size()) return _ports.at(id); else return NULL;}
-
+    virtual int32_t getPortId(BaseQueue* q) const { return -1; }    
     unsigned int portCount(){ return _ports.size();}
 
     void sendPause(LosslessQueue* problem, unsigned int wait);

@@ -15,6 +15,7 @@
 #include <ostream>
 #include <memory>
 #include <optional>
+#include "uec_mp.h"
 
 //#define N K*K*K/4
 
@@ -279,6 +280,10 @@ public:
     virtual void add_switch_loggers(Logfile& log, simtime_picosec sample_period); 
 
     const FatTreeTopologyCfg& cfg() { return *_cfg; };
+
+    //建立 multipath_table，拓扑构建完成后调用
+    void build_multipath_table(UecMpHashx* mp);  
+
 private:
     const FatTreeTopologyCfg* _cfg;
     map<Queue*,int> _link_usage;

@@ -22,6 +22,14 @@
 //  *** don't change this default - override it by calling UecSrc::setMinRTO()
 #define DEFAULT_UEC_RTO_MIN 100
 
+constexpr double SMARTTCONV_ALPHA_RTT = 0.125;
+constexpr double SMARTTCONV_SEVERE_THRESHOLD = 0.6;
+constexpr double SMARTTCONV_BETA_SEVERE      = 0.5;
+constexpr double SMARTTCONV_BETA_MILD        = 0.2;
+constexpr double SMARTTCONV_W_RTT            = 0.7;
+constexpr double SMARTTCONV_W_ECN            = 0.3;
+
+
 static const unsigned uecMaxInFlightPkts = 1 << 14;
 class UecPullPacer;
 class UecSink;
@@ -215,7 +223,7 @@ public:
     static bool _sender_based_cc;
     static bool _receiver_based_cc;
 
-    enum Sender_CC { DCTCP, NSCC, CONSTANT, Z_INCAST};
+    enum Sender_CC { DCTCP, NSCC, CONSTANT, Z_INCAST, SMARTT};
     static Sender_CC _sender_cc_algo;
 
     // 窗口日志开关
@@ -328,6 +336,7 @@ public:
     void (UecSrc::*updateCwndOnNack)(bool skip, mem_b nacked_bytes, bool last_hop);
     void (UecSrc::*processEcnNotifyHandler)(const UecEcnNotifyPacket& pkt);
 
+    void processEcnNotify_SMARTT(const UecEcnNotifyPacket& pkt);
     bool checkFinished(UecDataPacket::seq_t cum_ack);
 
     Stats _stats;

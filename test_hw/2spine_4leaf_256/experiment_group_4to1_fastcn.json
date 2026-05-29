@@ -1,0 +1,50 @@
+{
+  "experiments": [
+    {
+      "name": "nscc_composite_4to1",
+      "command": "/home/lab/uec/huawei-uec/htsim/sim/build/datacenter/htsim_uec",
+      "args": [
+        "-tm", "/home/lab/uec/huawei-uec/test_hw/2spine_4leaf_256/connection_matrices/incast_4to1_1MB.cm",
+        "-topo", "/home/lab/uec/huawei-uec/test_hw/2spine_4leaf_256/leaf_spine_256.topo",
+        "-debug",
+        "-log", "nic",
+        "-log", "tor_downqueue",
+        "-logtime_us", "10",
+        "-load_balancing_algo", "hashx",
+        "-strat","ecmp_host",
+        "-sender_cc_algo", "nscc",
+        "-queue_type", "composite",
+        "-ecn_enqueue",
+        "-log", "cwnd",
+        "-end", "0",
+        "-q", "256"
+      ],
+      "output": "/home/lab/uec/huawei-uec/test_hw/2spine_4leaf_256/result/result_nscc_composite_4to1.txt",
+      "log": "/home/lab/uec/huawei-uec/test_hw/2spine_4leaf_256/result/result_nscc_composite_4to1.log"
+    },
+    {
+      "name": "nscc_composite_4to1_fastcn",
+      "command": "/home/lab/uec/huawei-uec/htsim/sim/build/datacenter/htsim_uec",
+      "args": [
+        "-tm", "/home/lab/uec/huawei-uec/test_hw/2spine_4leaf_256/connection_matrices/incast_4to1_1MB.cm",
+        "-topo", "/home/lab/uec/huawei-uec/test_hw/2spine_4leaf_256/leaf_spine_256.topo",
+        "-debug",
+        "-log", "nic",
+        "-log", "tor_downqueue",
+        "-logtime_us", "10",
+        "-load_balancing_algo", "hashx",
+        "-strat","ecmp_host",
+        "-sender_cc_algo", "nscc",
+        "-queue_type", "composite",
+        "-enable_fastcn",
+        "-nscc_fastcn",
+        "-ecn_enqueue",
+        "-log", "cwnd",
+        "-end", "0",
+        "-q", "256"
+      ],
+      "output": "/home/lab/uec/huawei-uec/test_hw/2spine_4leaf_256/result/result_nscc_composite_4to1_fastcn.txt",
+      "log": "/home/lab/uec/huawei-uec/test_hw/2spine_4leaf_256/result/result_nscc_composite_4to1_fastcn.log"
+    }
+  ]
+}

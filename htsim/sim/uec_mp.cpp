@@ -2,7 +2,12 @@
 #include "uec_mp.h"
 
 #include <iostream>
+#include"uec.h"
 
+
+std::map<std::pair<uint32_t,uint32_t>, std::vector<uint32_t>> UecMpHashx::_multipath_table;
+bool UecMpHashx::_table_built = false;
+std::unordered_map<uint32_t, UecMpHashx::PathStat> UecMpHashx::_path_stats;
 
 UecMpOblivious::UecMpOblivious(uint16_t no_of_paths,
                                bool debug)
@@ -296,7 +301,11 @@ UecMpHashx::UecMpHashx(uint16_t no_of_paths, bool debug, uint32_t src, uint32_t 
       _dst(dst),
       _ecn_low(ecn_low),
       _ecn_high(ecn_high),
-      _max_weight(max_weight)
+      _max_weight(max_weight),
+      _last_action_was_lb(false),
+      _cached_entropy(0),
+      _path_cooldown(0),
+      _next_entropy(0)
       {
     // 使用 src 和 dst 计算初始路径（使用大质数增加哈希分散性）
     // const uint32_t HASH_PRIME = 2654435761u;  // 大质数
@@ -384,33 +393,152 @@ void UecMpHashx::processEv(uint16_t path_id, uint64_t queue_size_low, uint64_t q
     }
 }
 
-uint16_t UecMpHashx::nextEntropy(uint64_t seq_sent, uint64_t cur_cwnd_in_pkts) {
-    uint16_t selected_path = _current_path;
+void UecMpHashx::processEv(uint16_t path_id, PathFeedback feedback, simtime_picosec rtt) {
+    auto& stat = _path_stats[path_id];
+    stat.total_count++;
+    cout <<"[SMARTT] ACK Receive Process" << "" << " path_id=" << path_id << endl;
+    // UpdateRTT: EMA 更新 avg_rtt
+    double rtt_sec = timeAsSec(rtt);
+    if (stat.avg_rtt == 0.0) {
+        stat.avg_rtt = rtt_sec;
+    } else {
+        stat.avg_rtt = (1.0 - SMARTTCONV_ALPHA_RTT) * stat.avg_rtt
+                     + SMARTTCONV_ALPHA_RTT * rtt_sec;
+    }
 
-    // Check if current path weight is less than _max_weight, increment and skip
-    while (_path_weights[selected_path] < (int)_max_weight) {
-        if (_debug) {
-            cout << timeAsUs(EventList::getTheEventList().now()) << " " << _debug_tag
-                 << " Hashx nextEntropy path " << selected_path
-                 << " weight=" << _path_weights[selected_path]
-                 << " incrementing and skipping" << endl;
+    if (feedback == PATH_ECN) {
+        stat.ecn_count++;
+        stat.last_bad_time = EventList::getTheEventList().now();
+
+        // ECN时从next_entropy池里取新路径
+        uint32_t new_entropy = _next_entropy % _no_of_paths;
+        _next_entropy = (_next_entropy + 1) % _no_of_paths;
+
+        if (new_entropy != _cached_entropy) {
+            _cached_entropy = new_entropy;
+            _path_stats[_cached_entropy].switch_count++;
+        } else {
+            _cached_entropy = path_id;
         }
-        _path_weights[selected_path]++;  // increment weight by 1
-        _current_path = (_current_path + 1) % _no_of_paths;
-        selected_path = _current_path;
+    }
+}
+
+void UecMpHashx::processEv(uint16_t path_id, uint32_t switch_id, uint32_t port_id) {
+    auto key = std::make_pair(switch_id, port_id);
+    auto it  = _multipath_table.find(key);
+
+    if (it != _multipath_table.end() && !it->second.empty()) {
+        // LB：选最优替代路径，更新 _cached_entropy
+        cout << "[MULTIPATH_TABLE] LB: switch=" << switch_id 
+             << " port=" << port_id
+             << " old_entropy=" << _cached_entropy
+             << endl;
+
+        handleLB(path_id, it->second);
+        _last_action_was_lb = true;
+        cout << "Load Balance" << endl;
+
+    } else {
+        cout << "[MULTIPATH_TABLE] CC: switch=" << switch_id 
+             << " port=" << port_id
+             << " (no alternatives, table miss)" 
+             << endl;
+        // CC：通知 UecSrc 走降窗
+        _last_action_was_lb = false;
+        cout << "Congestion Control" << endl;
+    }
+}
+
+void UecMpHashx::handleLB(uint16_t path_id, const std::vector<uint32_t>& alternatives) {
+    // 记录当前路径的坏记录
+    cout << "[MULTIPATH_TABLE] handleLB" << endl;
+    auto& stat = _path_stats[path_id];
+    stat.ecn_count++;
+    stat.last_bad_time = EventList::getTheEventList().now();
+
+    // 选最优替代路径并切换
+    _cached_entropy = selectBestAlternative(alternatives, path_id);
+}
+
+uint32_t UecMpHashx::selectBestAlternative(const std::vector<uint32_t>& candidates, uint32_t bad_path) {
+    uint32_t best = UINT32_MAX;
+    double best_score = std::numeric_limits<double>::infinity();
+    auto now = EventList::getTheEventList().now();
+
+    cout << "[MULTIPATH_TABLE] selectBestAlternative candidates";
+
+    for (uint32_t e : candidates) {
+        if (e == bad_path) continue;
+        
+        auto& s = _path_stats[e];
+        double cooldown = (s.last_bad_time > 0 && now - s.last_bad_time < _path_cooldown)
+                        ? std::numeric_limits<double>::infinity() : 0.0;
+        double ecn_ratio = (double)s.ecn_count / std::max((uint64_t)1, s.total_count);
+        double score = SMARTTCONV_W_RTT * s.avg_rtt
+                     + SMARTTCONV_W_ECN * ecn_ratio
+                     + cooldown;
+        if (score < best_score) {
+            best_score = score;
+            best = e;
+        }
+        cout << "[SCORE CHECK]" << " path=" << e 
+             << " avg_rtt=" << s.avg_rtt 
+             << " ecn_ratio=" << ecn_ratio 
+             << " cooldown=" << cooldown 
+             << " score=" << score 
+             << endl;
     }
 
-    // Move to next path for next time
-    _current_path = (_current_path + 1) % _no_of_paths;
+    if (best == UINT32_MAX) return candidates[0];
+    cout << " best=" << best << " score=" << best_score << endl;
+    return best;
+}
 
-    if (_debug) {
-        cout << timeAsUs(EventList::getTheEventList().now()) << " " << _debug_tag
-             << " Hashx nextEntropy selected_path " << selected_path
-             << " weight " << _path_weights[selected_path]
-             << " next_path " << _current_path << endl;
+void UecMpHashx::addMultipathEntry(uint32_t switch_id, uint32_t port_id, const std::vector<uint32_t>& alternatives) {
+    _multipath_table[{switch_id, port_id}] = alternatives;
+}
+
+// uint16_t UecMpHashx::nextEntropy(uint64_t seq_sent, uint64_t cur_cwnd_in_pkts) {
+//     uint16_t selected_path = _current_path;
+
+//     // Check if current path weight is less than _max_weight, increment and skip
+//     while (_path_weights[selected_path] < (int)_max_weight) {
+//         if (_debug) {
+//             cout << timeAsUs(EventList::getTheEventList().now()) << " " << _debug_tag
+//                  << " Hashx nextEntropy path " << selected_path
+//                  << " weight=" << _path_weights[selected_path]
+//                  << " incrementing and skipping" << endl;
+//         }
+//         _path_weights[selected_path]++;  // increment weight by 1
+//         _current_path = (_current_path + 1) % _no_of_paths;
+//         selected_path = _current_path;
+//     }
+
+//     // Move to next path for next time
+//     _current_path = (_current_path + 1) % _no_of_paths;
+
+//     if (_debug) {
+//         cout << timeAsUs(EventList::getTheEventList().now()) << " " << _debug_tag
+//              << " Hashx nextEntropy selected_path " << selected_path
+//              << " weight " << _path_weights[selected_path]
+//              << " next_path " << _current_path << endl;
+//     }
+
+//     return selected_path;
+// }
+
+uint16_t UecMpHashx::nextEntropy(uint64_t seq_sent, uint64_t cur_cwnd_in_pkts) {
+    cout << "[MULTIPATH_TABLE] nextEntropy" << endl;
+    // 探测阶段：还没试完所有路径
+    if (!allEntropiesTried()) {
+    cout << "[MULTIPATH_TABLE] Exploring path " << _next_entropy << endl;
+        uint16_t ev = (uint16_t)_next_entropy;
+        _next_entropy++;
+        return ev;
     }
-
-    return selected_path;
+    cout << "[MULTIPATH_TABLE] All paths tried, using cached entropy " << _cached_entropy << endl;
+    // 稳定阶段：用 LB 选定的最优路径
+    return (uint16_t)_cached_entropy;
 }
 
 UecMpRandom::UecMpRandom(uint16_t no_of_paths, bool debug)

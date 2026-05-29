@@ -132,6 +132,12 @@ public:
     static double _speculative_threshold_fraction;
     static uint16_t _trim_size;
     static bool _disable_trim;
+    int32_t getPortId(BaseQueue* q) const override {
+        for (size_t i = 0; i < _ports.size(); i++) {
+            if (_ports[i] == q) return (int32_t)i;
+        }
+    return -1;
+    }
 private:
     switch_type _type;
     Pipe* _pipe;

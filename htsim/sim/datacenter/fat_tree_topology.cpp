@@ -1622,3 +1622,55 @@ void FatTreeTopology::add_switch_loggers(Logfile& log, simtime_picosec sample_pe
         switches_c[i]->add_logger(log, sample_period);
     }
 }
+
+void FatTreeTopology::build_multipath_table(UecMpHashx* mp) {
+    // ToR 上行口：多路径区域
+    // key = (tor_switch_id, port_id)
+    // value = 同一台 ToR 其他上行口对应的 entropy 列表
+    for (uint32_t tor = 0; tor < _cfg->NTOR; tor++) {
+        uint32_t agg_min, agg_max;
+        if (_cfg->_tiers == 3) {
+            uint32_t podid = tor / _cfg->_tor_switches_per_pod;
+            agg_min = _cfg->MIN_POD_AGG_SWITCH(podid);
+            agg_max = _cfg->MAX_POD_AGG_SWITCH(podid);
+        } else {
+            // 2-tier: 所有 agg 都是 ToR 的上行邻居
+            agg_min = 0;
+            agg_max = _cfg->NAGG - 1;
+        }
+
+        for (uint32_t agg = agg_min; agg <= agg_max; agg++) {
+            for (uint32_t b = 0; b < _cfg->_bundlesize[AGG_TIER]; b++) {
+                // 当前端口在 switches_lp[tor]._ports 里的编号
+                int32_t port_id = static_cast<FatTreeSwitch*>(switches_lp[tor])->getPortId(queues_nlp_nup[tor][agg][b]);
+                assert(port_id >= 0);
+
+                // 替代 entropy：同一台 ToR 其他所有上行口
+                // HASHX 选路：pathid % available_hops->size()
+                // available_hops 里第 i 条路对应 agg=(agg_min+i/bundlesize), b=i%bundlesize
+                std::vector<uint32_t> alternatives;
+                for (uint32_t other_agg = agg_min; other_agg <= agg_max; other_agg++) {
+                    if (other_agg == agg) continue;
+                    for (uint32_t ob = 0; ob < _cfg->_bundlesize[AGG_TIER]; ob++) {
+                        uint32_t entropy = (other_agg - agg_min)
+                                         * _cfg->_bundlesize[AGG_TIER] + ob;
+                        alternatives.push_back(entropy);
+                    }
+                }
+
+                mp->addMultipathEntry((uint32_t)tor, (uint32_t)port_id, alternatives);
+            }
+        }
+    }
+    // Agg 下行口属于单路径区域，不填表
+    // processEv 查表 miss 时 _last_action_was_lb=false，UecSrc 自动走 CC
+    cout << "[MULTIPATH_TABLE] multipath_table built:" << endl;
+    for (auto& [key, alts] : mp->_multipath_table) {
+        cout << "  switch_id=" << key.first 
+             << " port_id=" << key.second 
+             << " alternatives=[";
+        for (uint32_t e : alts) cout << e << ",";
+        cout << "]" << endl;
+    }
+    cout << "[MULTIPATH_TABLE] total entries: " << mp->_multipath_table.size() << endl;
+}
